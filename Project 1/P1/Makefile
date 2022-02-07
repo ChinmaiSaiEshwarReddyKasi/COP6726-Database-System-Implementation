@@ -1,6 +1,7 @@
 CC = g++ -O2 -Wno-deprecated 
 
 tag = -i
+gTest_tag = -lgtest -lgtest_main
 
 ifdef linux
 tag = -n
@@ -8,12 +9,18 @@ endif
 
 test.out: Record.o Comparison.o ComparisonEngine.o Schema.o File.o DBFile.o y.tab.o lex.yy.o test.o
 	$(CC) -o test.out Record.o Comparison.o ComparisonEngine.o Schema.o File.o DBFile.o y.tab.o lex.yy.o test.o -lfl
+
+gTests: Record.o Comparison.o ComparisonEngine.o Schema.o File.o DBFile.o y.tab.o lex.yy.o gTests.o
+	$(CC) -o gTests.out Record.o Comparison.o ComparisonEngine.o Schema.o File.o DBFile.o y.tab.o lex.yy.o gTests.o $(gTest_tag)
 	
 main: Record.o Comparison.o ComparisonEngine.o Schema.o File.o y.tab.o lex.yy.o main.o
 	$(CC) -o main Record.o Comparison.o ComparisonEngine.o Schema.o File.o y.tab.o lex.yy.o main.o -lfl
 	
 test.o: test.cc
 	$(CC) -g -c test.cc
+
+gTests.o: gTests.cc
+	$(CC) -g -c gTests.cc
 
 main.o: main.cc
 	$(CC) -g -c main.cc
