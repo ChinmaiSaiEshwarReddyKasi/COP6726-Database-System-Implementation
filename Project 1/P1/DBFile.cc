@@ -14,9 +14,13 @@ DBFile::DBFile () {
 
 }
 
+// This function is used to create the db file to load the data.
 int DBFile::Create (const char *f_path, fType f_type, void *startup) {
     if(f_type == heap){
+
+        // Opening the required file
         dataFile.Open(0, (char *) f_path);
+
         pageNumber = 0;
         stillWriting = false;
         return 1;
@@ -25,10 +29,13 @@ int DBFile::Create (const char *f_path, fType f_type, void *startup) {
     }
 }
 
+// This function is used to load the db file for processing.
 void DBFile::Load (Schema &f_schema, const char *loadpath) {
     FILE *textFile = fopen(loadpath, "r");
     if (textFile){
         Record r;
+
+        // We iterarte over all the records in the file to get the data.
         while(r.SuckNextRecord(&f_schema, textFile)==1){
             Add(r);
         }
@@ -41,6 +48,7 @@ void DBFile::Load (Schema &f_schema, const char *loadpath) {
     fclose(textFile);
 }
 
+// This function is used to open the db file.
 int DBFile::Open (const char *f_path) {
     dataFile.Open(1, (char *) f_path);
     stillWriting = false;
@@ -54,7 +62,10 @@ void DBFile::MoveFirst () {
     }
 }
 
+// This function is used to close the db file.
 int DBFile::Close () {
+
+    // Check if data is still being written then add data and exit.
     if(stillWriting){
         dataFile.AddPage(&page, pageNumber);
     }
