@@ -44,17 +44,19 @@ Schema.o: Schema.cc
 	$(CC) -g -c Schema.cc
 	
 y.tab.o: Parser.y
-	yacc -d Parser.y
-	sed $(tag) -e "s/  __attribute__ ((__unused__))$$/# ifndef __cplusplus\n  __attribute__ ((__unused__));\n# endif/" y.tab.c 
+	bison -d Parser.y
+	rename Parser.tab.h y.tab.h
+	rename Parser.tab.c y.tab.c
+	sed $(tag) -e "s/  __attribute__ ((__unused__))$$/# ifndef __cplusplus\n  __attribute__ ((__unused__));\n# endif/" y.tab.c
 	g++ -c y.tab.c
 
 lex.yy.o: Lexer.l
-	lex  Lexer.l
+	flex  Lexer.l
 	gcc  -c lex.yy.c
 
 clean: 
-	rm -f *.o
-	rm -f *.out
-	rm -f y.tab.c
-	rm -f lex.yy.c
-	rm -f y.tab.h
+	del *.o
+	del *.out
+	del y.tab.c
+	del lex.yy.c
+	del y.tab.h
