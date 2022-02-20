@@ -33,3 +33,6 @@
 
 sed*
 .vscode/
+*.bin
+*.tbl
+*.nfs*
