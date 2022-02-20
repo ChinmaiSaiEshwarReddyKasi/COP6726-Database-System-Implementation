@@ -13,6 +13,11 @@ typedef enum {heap, sorted, tree} fType;
 // stub DBFile header..replace it with your own DBFile.h 
 
 class DBFile {
+	File dataFile;
+	Page page;
+	off_t pageNumber = 0;
+	bool stillWriting = false;
+	bool fileOpen = false;
 
 public:
 	DBFile (); 
