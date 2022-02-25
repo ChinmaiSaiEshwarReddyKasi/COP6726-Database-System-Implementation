@@ -124,7 +124,7 @@ void DBFile::Add (Record &rec) {
 int DBFile::GetNext (Record &fetchme) {
     if(!fileOpen){
         cerr << "Cannot get the next record from the db file as it is not opened";
-        return;
+        return 0;
     }
     if(stillWriting){ MoveFirst();}
 
