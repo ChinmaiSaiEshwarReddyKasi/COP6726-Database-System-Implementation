@@ -1,17 +1,17 @@
 #include "BigQ.h"
 
-void* workerMain(void* arg) {
-    WorkerArg* argWorker = (WorkerArg*) arg;
-	priority_queue<Record*, vector<Record*>, RecordComparer> queueRecord (argWorker->sequence);
-    priority_queue<Run*, vector<Run*>, RunComparer> queueRunner(argWorker->sequence);
+void* tpmmsMainProcess(void* arg) {
+    tpmmsStruct* argWorker = (tpmmsStruct*) arg;
+	priority_queue<Record*, vector<Record*>, CompareRecords> recordsQ (argWorker->sequence);
+    priority_queue<TPMMS*, vector<TPMMS*>, CompareBuffers> buffersQ (argWorker->sequence);
     Record thisRecord;
     vector<Record* > RecordBuffer;
     
 
     //Set disk based file for sorting
     File f;
-	f.Open(0, fName);
     char* fName = "tmp.bin";
+	f.Open(0, fName);
     
 
     //Buffer page used for disk based file
@@ -21,7 +21,7 @@ void* workerMain(void* arg) {
 	Page bP;
     
     //Retrieve all records from input pipe
-    while (argWorker->in->Remove(&thisRecord) == 1) {
+    while (argWorker->inputData->Remove(&thisRecord) == 1) {
         Record* recordTemp = new Record;
         recordTemp->Copy(&thisRecord);
         //Add to another page if current page is full
@@ -30,46 +30,46 @@ void* workerMain(void* arg) {
             bP.EmptyItOut();
 
             //Add to another run if current run is full
-            if (countOfPage == argWorker->runlen) {
-                recordQueueToRun(queueRecord, queueRunner, f, bP, indexOfPage);
-                queueRecord = priority_queue<Record*, vector<Record*>, RecordComparer> (argWorker->sequence);
+            if (countOfPage == argWorker->runlength) {
+                tpmmsPipeline(recordsQ, buffersQ, f, bP, indexOfPage);
+                recordsQ = priority_queue<Record*, vector<Record*>, CompareRecords> (argWorker->sequence);
                 countOfPage = 0;
             }
 
             bP.Append(&thisRecord);
         }
 
-        queueRecord.push(recordTemp);
+        recordsQ.push(recordTemp);
     }
     // Handle the last run
-    if (!queueRecord.empty()) {
-        recordQueueToRun(queueRecord, queueRunner, f, bP, indexOfPage);
-        queueRecord = priority_queue<Record*, vector<Record*>, RecordComparer> (argWorker->sequence);
+    if (!recordsQ.empty()) {
+        tpmmsPipeline(recordsQ, buffersQ, f, bP, indexOfPage);
+        recordsQ = priority_queue<Record*, vector<Record*>, CompareRecords> (argWorker->sequence);
     }
     // Merge for all runs
-    while (!queueRunner.empty()) {
-        Run* run = queueRunner.top();
-        queueRunner.pop();
-        argWorker->out->Insert(run->highestRecord);
-        if (run->UpdatehighestRecord() == 1) {
-            queueRunner.push(run);
+    while (!buffersQ.empty()) {
+        TPMMS* topData = buffersQ.top();
+        buffersQ.pop();
+        argWorker->outputData->Insert(topData->firstRecord);
+        if (topData->firstRecordUpdate() == 1) {
+            buffersQ.push(topData);
         }
     }
     f.Close();
-    argWorker->out->ShutDown();
+    argWorker->outputData->ShutDown();
     return NULL;
 }
 
 //Used for puting records into a run, which is disk file based
-void* recordQueueToRun(priority_queue<Record*, vector<Record*>, RecordComparer>& queueRecord, 
-    priority_queue<Run*, vector<Run*>, RunComparer>& queueRunner, File& f, Page& bP, int& indexOfPage) {
+void* tpmmsPipeline(priority_queue<Record*, vector<Record*>, CompareRecords>& recordsQ, priority_queue<TPMMS*, vector<TPMMS*>, CompareBuffers>& buffersQ, 
+File& f, Page& bP, int& indexOfPage) {
 
-    bP.EmptyItOut();
     int indexOfStart = indexOfPage;
-    while (!queueRecord.empty()) {
+    bP.EmptyItOut();
+    while (!recordsQ.empty()) {
         Record* recordTemp = new Record;
-        recordTemp->Copy(queueRecord.top());
-        queueRecord.pop();
+        recordTemp->Copy(recordsQ.top());
+        recordsQ.pop();
         if (bP.Append(recordTemp) == 0) {
             f.AddPage(&bP, indexOfPage++);
             bP.EmptyItOut();
@@ -78,8 +78,8 @@ void* recordQueueToRun(priority_queue<Record*, vector<Record*>, RecordComparer>&
     }
     f.AddPage(&bP, indexOfPage++);
     bP.EmptyItOut();
-    Run* run = new Run(&f, indexOfStart, indexOfPage - indexOfStart);
-    queueRunner.push(run);
+    TPMMS* tpmmsData = new TPMMS(&f, indexOfStart, indexOfPage - indexOfStart);
+    buffersQ.push(tpmmsData);
     return NULL;
 }
 
@@ -88,12 +88,12 @@ void* recordQueueToRun(priority_queue<Record*, vector<Record*>, RecordComparer>&
 BigQ :: BigQ (Pipe &in, Pipe &out, OrderMaker &sortorder, int runlen) {
     pthread_t worker;
     //Construct arguement used for worker thread
-    WorkerArg* argWorker = new WorkerArg;
-    argWorker->in = &in;
-    argWorker->out = &out;
+    tpmmsStruct* argWorker = new tpmmsStruct;
+    argWorker->inputData = &in;
+    argWorker->outputData = &out;
     argWorker->sequence = &sortorder;
-    argWorker->runlen = runlen;
-    pthread_create(&worker, NULL, workerMain, (void*) argWorker);
+    argWorker->runlength = runlen;
+    pthread_create(&worker, NULL, tpmmsMainProcess, (void*) argWorker);
     pthread_join(worker, NULL);
 	out.ShutDown ();
 }
@@ -102,50 +102,50 @@ BigQ::~BigQ () {
 
 }
 
-Run::Run(File* f, int start, int length) {
-	runLength = length;
+TPMMS::TPMMS(File* f, int start, int l) {
+	runLength = l;
     fBase = f;
-    startPage = start;
+    firstPage = start;
     
-    curPage = start;
-    fBase->GetPage(&bP, startPage);
-    highestRecord = new Record;
-    UpdatehighestRecord();
+    presentPage = start;
+    fBase->GetPage(&bP, firstPage);
+    firstRecord = new Record;
+    firstRecordUpdate();
 }
 
-int Run::UpdatehighestRecord() {
+int TPMMS::firstRecordUpdate() {
     //if bufferPage is full
-    if (bP.GetFirst(highestRecord) == 0) {
+    if (bP.GetFirst(firstRecord) == 0) {
         //if reach the last page
-        curPage++;
-        if (curPage == startPage + runLength) {
+        presentPage++;
+        if (presentPage == firstPage + runLength) {
             return 0;
         }
         bP.EmptyItOut();
-        fBase->GetPage(&bP, curPage);
-        bP.GetFirst(highestRecord);
+        fBase->GetPage(&bP, presentPage);
+        bP.GetFirst(firstRecord);
     }
     return 1;
 }
 
-RecordComparer::RecordComparer(OrderMaker* OM) {
+CompareRecords::CompareRecords(OrderMaker* OM) {
     sequence = OM;
 }
 
-bool RecordComparer::operator () (Record* left, Record* right) {
+bool CompareRecords::operator () (Record* left, Record* right) {
     ComparisonEngine CE;
     if (CE.Compare(left, right, sequence) >= 0)
         return true;
     return false;
 }
 
-RunComparer::RunComparer(OrderMaker* OM) {
+CompareBuffers::CompareBuffers(OrderMaker* OM) {
     sequence = OM;
 }
 
-bool RunComparer::operator () (Run* left, Run* right) {
+bool CompareBuffers::operator () (TPMMS* left, TPMMS* right) {
     ComparisonEngine CE;
-    if (CE.Compare(left->highestRecord, right->highestRecord, sequence) >= 0)
+    if (CE.Compare(left->firstRecord, right->firstRecord, sequence) >= 0)
         return true;
     return false;
 }
