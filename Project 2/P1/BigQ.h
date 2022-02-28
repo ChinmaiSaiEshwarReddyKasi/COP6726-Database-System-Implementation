@@ -19,6 +19,15 @@ public:
 
 };
 
+//Struct used as arguement for worker thread
+typedef struct tpmmsStruct {
+	OrderMaker *sequence;
+	Pipe *inputData;
+	Pipe *outputData;
+	int runlength;
+	
+};
+
 
 class TPMMS {
 
@@ -61,15 +70,6 @@ private:
 
 };
 
-//Struct used as arguement for worker thread
-typedef struct tpmmsStruct {
-	OrderMaker *sequence;
-	Pipe *inputData;
-	Pipe *outputData;
-	int runlength;
-	
-};
-
 //Main method executed by worker, worker will retrieve records from input pipe, 
 //sort records into runs and puting all runs into priority queue, and geting sorted reecords
 //from priority queue to output pipe
@@ -77,7 +77,7 @@ void* tpmmsMainProcess(void* arg);
 
 //Used for take sequences of pages of records, and construct a run to hold such records, and put run
 //into priority queue
-void* tpmmsPipeline(priority_queue<Record*, vector<Record*>, CompareRecords>& queueRecord, 
-    priority_queue<TPMMS*, vector<TPMMS*>, CompareBuffers>& queueRunner, File& f, Page& bP, int& indexOfPage);
+void* tpmmsPipeline(priority_queue<Record*, vector<Record*>, CompareRecords>& queueRecord, priority_queue<TPMMS*, vector<TPMMS*>, CompareBuffers>& queueRunner, 
+File& f, Page& bP, int& indexOfPage);
 
 #endif
