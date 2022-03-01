@@ -18,7 +18,7 @@ ComparisonEngine ce;
 Schema* s = new Schema("catalog", "nation");
 OrderMaker* o = new OrderMaker(s);
 
-TEST(BigQTest, TestSortingBufferRecords) {
+TEST(BigQTest, TestRecordPipeline) {
     f.Open(1, nationFile);
     priority_queue<Record*, vector<Record*>, CompareRecords> bufferQ (o);
     f.GetPage(&page, 0);
@@ -50,7 +50,7 @@ TEST(BigQTest, TestUpdatingFirstRecord) {
     f.Close();
 }
 
-TEST(BigQTest, TestSortingRecords) {
+TEST(BigQTest, TestComparingRecords) {
     f.Open(1, nationFile);
     priority_queue<Record*, vector<Record*>, CompareRecords> recQ (o); 
 
@@ -77,29 +77,24 @@ TEST(BigQTest, TestSortingRecords) {
     f.Close();
 }
 
-TEST(BigQTest, RunComparerTest) {
-    //Initiate the proority queue for recard comparer
-    File file;
-    file.Open(1, "db/lineitem.bin");
-    Schema* scheme = new Schema("catalog", "lineitem");
-    OrderMaker* order = new OrderMaker(scheme);
-    priority_queue<class TPMMS*, vector<class TPMMS*>, CompareBuffers> runQueue (order);
+TEST(BigQTest, TestComparingBuffers) {
+    f.Open(1, "db/lineitem.bin");
+    priority_queue<class TPMMS*, vector<class TPMMS*>, CompareBuffers> bufferQ (o);
     ComparisonEngine comparisonEngine;
 
-    class TPMMS* run1 = new class TPMMS(&file, 0, 1);
-    class TPMMS* run2 = new class TPMMS(&file, 1, 1);
-    runQueue.push(run1);
-    runQueue.push(run2);
+    class TPMMS* temp1 = new class TPMMS(&f, 0, 1);
+    class TPMMS* temp2 = new class TPMMS(&f, 1, 1);
+    bufferQ.push(temp1);
+    bufferQ.push(temp2);
 
-    //Take top record from two different run
-    Record one, two;
-    one.Copy(runQueue.top()->firstRecord);
-    runQueue.pop();
-    two.Copy(runQueue.top()->firstRecord);
-    runQueue.pop();
-    EXPECT_EQ(comparisonEngine.Compare(&one, &two, order), -1);
+    Record temp1Top, temp2Top;
+    temp1Top.Copy(bufferQ.top()->firstRecord);
+    bufferQ.pop();
+    temp2Top.Copy(bufferQ.top()->firstRecord);
+    bufferQ.pop();
+    EXPECT_EQ(ce.Compare(&temp1Top, &temp2Top, o), -1);
 
-    file.Close();
+    f.Close();
 }
 
 int main(int argc, char **argv) {
