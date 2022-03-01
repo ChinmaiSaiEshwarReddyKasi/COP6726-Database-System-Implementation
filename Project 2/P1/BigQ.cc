@@ -80,13 +80,13 @@ void* tpmmsMainProcess(void* arg) {
 }
 
 
-CompareBuffers::CompareBuffers(OrderMaker* OM) {
-    sequence = OM;
+CompareBuffers::CompareBuffers(OrderMaker* orderMaker) {
+    sequence = orderMaker;
 }
 
-bool CompareBuffers::operator () (TPMMS* left, TPMMS* right) {
+bool CompareBuffers::operator () (TPMMS* l, TPMMS* r) {
     ComparisonEngine CE;
-    if (CE.Compare(left->firstRecord, right->firstRecord, sequence) >= 0)
+    if (CE.Compare(l->firstRecord, r->firstRecord, sequence) >= 0)
         return true;
     return false;
 }
@@ -128,13 +128,13 @@ int TPMMS::firstRecordUpdate() {
     return 1;
 }
 
-CompareRecords::CompareRecords(OrderMaker* OM) {
-    sequence = OM;
+CompareRecords::CompareRecords(OrderMaker* orderMaker) {
+    sequence = orderMaker;
 }
 
-bool CompareRecords::operator () (Record* left, Record* right) {
+bool CompareRecords::operator () (Record* l, Record* r) {
     ComparisonEngine CE;
-    if (CE.Compare(left, right, sequence) >= 0)
+    if (CE.Compare(l, r, sequence) >= 0)
         return true;
     return false;
 }

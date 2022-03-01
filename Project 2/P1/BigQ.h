@@ -19,7 +19,7 @@ public:
 
 };
 
-//Struct used as arguement for worker thread
+//TPMMS struct used as arguement for pthread
 typedef struct tpmmsStruct {
 	OrderMaker *sequence;
 	Pipe *inputData;
@@ -33,9 +33,7 @@ class TPMMS {
 
 public:
 	TPMMS(File* f, int firstPage, int runLength);
-	//Used to update the top record of current run
 	int firstRecordUpdate();
-	//top record of current Run
 	Record *firstRecord; 
 
 private: 
@@ -46,7 +44,7 @@ private:
 	int presentPage;
 };
 
-//Class used for comparing records for given CNF
+//Used for comparing records
 class CompareRecords {
 
 public:
@@ -58,7 +56,7 @@ private:
 
 };
 
-//Class used for comparing run for given CNF
+//Used for comparing buffers
 class CompareBuffers {
 
 public:
@@ -70,13 +68,10 @@ private:
 
 };
 
-//Main method executed by worker, worker will retrieve records from input pipe, 
-//sort records into runs and puting all runs into priority queue, and geting sorted reecords
-//from priority queue to output pipe
+//TPMMS main process, which will get all records, club them and sort them.
 void* tpmmsMainProcess(void* arg);
 
-//Used for take sequences of pages of records, and construct a run to hold such records, and put run
-//into priority queue
+//Used for creating pipelines to hold records to compare.
 void* tpmmsPipeline(priority_queue<Record*, vector<Record*>, CompareRecords>& queueRecord, priority_queue<TPMMS*, vector<TPMMS*>, CompareBuffers>& queueRunner, 
 File& f, Page& bP, int& indexOfPage);
 
