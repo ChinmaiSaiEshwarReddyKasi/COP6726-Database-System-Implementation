@@ -2,16 +2,20 @@
 CC = g++ -O2 -Wno-deprecated
 
 tag = -i
+gTest_tag = -lgtest -lgtest_main -pthread
 
 ifdef linux
 tag = -n
 endif
 
 test.out: Record.o Comparison.o ComparisonEngine.o Schema.o File.o BigQ.o DBFile.o Pipe.o y.tab.o lex.yy.o test.o
-	$(CC) -o test.out Record.o Comparison.o ComparisonEngine.o Schema.o File.o BigQ.o DBFile.o Pipe.o y.tab.o lex.yy.o test.o -lfl -lpthread
+	$(CC) -o test.out Record.o Comparison.o ComparisonEngine.o Schema.o File.o BigQ.o DBFile.o Pipe.o y.tab.o lex.yy.o test.o
 	
 a1test.out: Record.o Comparison.o ComparisonEngine.o Schema.o File.o DBFile.o Pipe.o y.tab.o lex.yy.o a1-test.o
-	$(CC) -o a1test.out Record.o Comparison.o ComparisonEngine.o Schema.o File.o DBFile.o Pipe.o y.tab.o lex.yy.o a1-test.o -lfl
+	$(CC) -o a1test.out Record.o Comparison.o ComparisonEngine.o Schema.o File.o DBFile.o Pipe.o y.tab.o lex.yy.o a1-test.o
+
+gTests: Record.o Comparison.o ComparisonEngine.o Schema.o File.o BigQ.o DBFile.o Pipe.o y.tab.o lex.yy.o gTests.o
+	$(CC) -o gTests.out Record.o Comparison.o ComparisonEngine.o Schema.o File.o BigQ.o DBFile.o Pipe.o y.tab.o lex.yy.o gTests.o $(gTest_tag)
 	
 test.o: test.cc
 	$(CC) -g -c test.cc
@@ -24,6 +28,9 @@ Comparison.o: Comparison.cc
 	
 ComparisonEngine.o: ComparisonEngine.cc
 	$(CC) -g -c ComparisonEngine.cc
+
+gTests.o: gTests.cc
+	$(CC) -g -c gTests.cc $(gTest_tag)
 	
 Pipe.o: Pipe.cc
 	$(CC) -g -c Pipe.cc
@@ -44,17 +51,19 @@ Schema.o: Schema.cc
 	$(CC) -g -c Schema.cc
 	
 y.tab.o: Parser.y
-	yacc -d Parser.y
-	sed $(tag) y.tab.c -e "s/  __attribute__ ((__unused__))$$/# ifndef __cplusplus\n  __attribute__ ((__unused__));\n# endif/" 
+	bison -d Parser.y
+	rename Parser.tab.h y.tab.h
+	rename Parser.tab.c y.tab.c
+	sed $(tag) -e "s/  __attribute__ ((__unused__))$$/# ifndef __cplusplus\n  __attribute__ ((__unused__));\n# endif/" y.tab.c
 	g++ -c y.tab.c
 
 lex.yy.o: Lexer.l
-	lex  Lexer.l
+	flex  Lexer.l
 	gcc  -c lex.yy.c
 
 clean: 
-	rm -f *.o
-	rm -f *.out
-	rm -f y.tab.c
-	rm -f lex.yy.c
-	rm -f y.tab.h
+	del *.o
+	del *.out
+	del y.tab.c
+	del lex.yy.c
+	del y.tab.h
