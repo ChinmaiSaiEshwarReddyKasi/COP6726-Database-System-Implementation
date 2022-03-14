@@ -1,7 +1,3 @@
-//
-// Created by LJJ on 2/24/21.
-//
-
 #ifndef A2_2TEST_DBFILESORTED_H
 #define A2_2TEST_DBFILESORTED_H
 #include "DBFile.h"
@@ -25,13 +21,13 @@ private:
     Pipe* out = new Pipe(100);
     pthread_t* thread = nullptr;
 
-    OrderMaker* orderMaker = nullptr;
+    OrderMaker* om = nullptr;
     int runLength;
 
     void writeMode();
     void readMode();
     static void *consumer (void *arg);
-    int Run (Record *left, Record *literal, Comparison *c);
+    int CompareRecords (Record *left, Record *literal, Comparison *c);
 public:
     SortedDBFile ();
 
@@ -49,4 +45,4 @@ public:
 };
 
 
-#endif //A2_2TEST_DBFILESORTED_H
+#endif

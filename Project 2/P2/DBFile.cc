@@ -17,59 +17,53 @@ DBFile::DBFile () {
 }
 
 int DBFile::Create (char *f_path, fType f_type, void *startup) {
-//    cout<< "DBFile Create" << endl;
-    char f_meta_name[100];
-    sprintf (f_meta_name, "%s.meta", f_path);
-    cout<<"meta data in "<<f_meta_name<<endl;
-    ofstream f_meta;
-    f_meta.open(f_meta_name);
-    OrderMaker* orderMaker = nullptr;
+    ofstream metaFile;
+    char fileName[100];
     int runLength = 0;
-    // write in file type
-    if(f_type == heap){
-        f_meta << "heap" << endl;
-        genericDB = new HeapDBFile();
-    }
-    else if(f_type==sorted){
-        f_meta << "sorted"<< endl;
+    OrderMaker* om = nullptr;
+    sprintf (fileName, "%s.meta", f_path);
+    cout<<"meta data in "<<fileName<<endl;
+    metaFile.open(fileName);
+
+    if(f_type == sorted){
+        metaFile << "sorted"<< endl;
         genericDB = new SortedDBFile();
     }
+    else if(f_type==heap){		
+        metaFile << "heap" << endl;
+        genericDB = new HeapDBFile();
+    }
     /*else if(f_type==tree){
-        f_meta << "tree"<< endl;
+        metaFile << "tree"<< endl;
         genericDB = new DBFileTree();
     }*/
-    //write in orderMaker and runLength
-    if(startup!= nullptr) {
-        SortedInfo* sortedInfo = ((SortedInfo*)startup);
-        orderMaker = sortedInfo->myOrder;
-        runLength = sortedInfo->runLength;
-        f_meta << runLength << endl;
-        f_meta << orderMaker->numAtts << endl;
-        for (int i = 0; i < orderMaker->numAtts; i++) {
-            f_meta << orderMaker->whichAtts[i] << endl;
-            if (orderMaker->whichTypes[i] == Int)
-                f_meta << "Int" << endl;
-            else if (orderMaker->whichTypes[i] == Double)
-                f_meta << "Double" << endl;
-            else if(orderMaker->whichTypes[i] == String)
-                f_meta << "String" << endl;
-        }
-        // store orderMaker and runLength into subclass
-        if(f_type == heap){
 
+    if(startup!= nullptr) {
+        SortedInfo* s = ((SortedInfo*)startup);
+        om = s->myOrder;
+        runLength = s->runLength;
+        metaFile << runLength << endl;
+        metaFile << om->numAtts << endl;
+        for (int i = 0; i < om->numAtts; i++) {
+            metaFile << om->whichAtts[i] << endl;
+            if (om->whichTypes[i] == String)
+                metaFile << "String" << endl;
+            else if (om->whichTypes[i] == Int)
+                metaFile << "Int" << endl;
+            else if(om->whichTypes[i] == Double)
+                metaFile << "Double" << endl;
         }
+        // store om and runLength into subclass
+        if(f_type == heap){}
         else if(f_type==sorted){
-            ((SortedDBFile*)genericDB)->orderMaker = orderMaker;
+            ((SortedDBFile*)genericDB)->om = om;
             ((SortedDBFile*)genericDB)->runLength = runLength;
         }
-        else if(f_type==tree){
-
-        }
+        else if(f_type==tree){}
     }
-    f_meta.close();
+    metaFile.close();
     int res = genericDB->Create(f_path, f_type, startup);
     return res;
-//    cout<< "end DBFile Create" << endl;
 }
 
 void DBFile::Load (Schema &f_schema, char *loadpath) {
@@ -77,48 +71,48 @@ void DBFile::Load (Schema &f_schema, char *loadpath) {
 }
 
 int DBFile::Open (char *f_path) {
-    OrderMaker* orderMaker = new OrderMaker();
-    char f_meta_name[100];
-    sprintf (f_meta_name, "%s.meta", f_path);
-    ifstream f_meta(f_meta_name);
-
     string s;
-    getline(f_meta, s);
+    char fileName[100];
+    ifstream metaFile(fileName);
+    sprintf (fileName, "%s.meta", f_path);
+    OrderMaker* om = new OrderMaker();
+
+    getline(metaFile, s);
     if(s.compare("heap")==0){
         genericDB = new HeapDBFile();
     }
     else if(s.compare("sorted")==0){
         genericDB = new SortedDBFile();
-        string temp;
-        getline(f_meta, temp);
-        int runLength = stoi(temp);
-        temp.clear();
-        getline(f_meta, temp);
-        orderMaker->numAtts = stoi(temp);
-        for(int i=0; i<orderMaker->numAtts; i++){
-            temp.clear();
-            getline(f_meta, temp);
-            orderMaker->whichAtts[i] = stoi(temp);
-            temp.clear();
-            getline(f_meta, temp);
-            if(temp.compare("Int")==0){
-                orderMaker->whichTypes[i] = Int;
+        string t;
+        getline(metaFile, t);
+        int runLength = stoi(t);
+        t.clear();
+        getline(metaFile, t);
+        om->numAtts = stoi(t);
+        for(int i=0; i<om->numAtts; i++){
+            t.clear();
+            getline(metaFile, t);
+            om->whichAtts[i] = stoi(t);
+            t.clear();
+            getline(metaFile, t);
+            if(t.compare("Int")==0){
+                om->whichTypes[i] = Int;
             }
-            else if(temp.compare("Double")==0){
-                orderMaker->whichTypes[i] = Double;
+            else if(t.compare("Double")==0){
+                om->whichTypes[i] = Double;
             }
-            else if(temp.compare("String")==0){
-                orderMaker->whichTypes[i] = String;
+            else if(t.compare("String")==0){
+                om->whichTypes[i] = String;
             }
         }
-        ((SortedDBFile*)genericDB)->orderMaker = orderMaker;
+        ((SortedDBFile*)genericDB)->om = om;
         ((SortedDBFile*)genericDB)->runLength = runLength;
-        orderMaker->Print();
+        om->Print();
     }
     // else if(s.compare("tree")==0){
     //     genericDB = new DBFileTree();
     // }
-    f_meta.close();
+    metaFile.close();
     int res = genericDB->Open(f_path);
     return res;
 }
@@ -128,9 +122,9 @@ void DBFile::MoveFirst () {
 }
 
 int DBFile::Close () {
-    int res = genericDB->Close();
+    int ans = genericDB->Close();
     delete genericDB;
-    return res;
+    return ans;
 }
 
 void DBFile::Add (Record &rec) {
