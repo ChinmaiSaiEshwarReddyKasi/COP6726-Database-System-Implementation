@@ -7,6 +7,7 @@
 #include "DBFile.h"
 #include "HeapDBFile.h"
 #include "Defs.h"
+#include "SortedDBFile.h"
 #include <iostream>
 #include <fstream>
 // stub file .. replace it with your own DBFile.cc
@@ -29,15 +30,15 @@ int DBFile::Create (char *f_path, fType f_type, void *startup) {
         f_meta << "heap" << endl;
         genericDB = new HeapDBFile();
     }
-    // else if(f_type==sorted){
-    //     f_meta << "sorted"<< endl;
-    //     genericDB = new DBFileSorted();
-    // }
-    // else if(f_type==tree){
-    //     f_meta << "tree"<< endl;
-    //     genericDB = new DBFileTree();
-    // }
-    // write in orderMaker and runLength
+    else if(f_type==sorted){
+        f_meta << "sorted"<< endl;
+        genericDB = new SortedDBFile();
+    }
+    /*else if(f_type==tree){
+        f_meta << "tree"<< endl;
+        genericDB = new DBFileTree();
+    }*/
+    //write in orderMaker and runLength
     if(startup!= nullptr) {
         SortedInfo* sortedInfo = ((SortedInfo*)startup);
         orderMaker = sortedInfo->myOrder;
@@ -57,10 +58,10 @@ int DBFile::Create (char *f_path, fType f_type, void *startup) {
         if(f_type == heap){
 
         }
-        // else if(f_type==sorted){
-        //     ((DBFileSorted*)genericDB)->orderMaker = orderMaker;
-        //     ((DBFileSorted*)genericDB)->runLength = runLength;
-        // }
+        else if(f_type==sorted){
+            ((SortedDBFile*)genericDB)->orderMaker = orderMaker;
+            ((SortedDBFile*)genericDB)->runLength = runLength;
+        }
         else if(f_type==tree){
 
         }
@@ -86,34 +87,34 @@ int DBFile::Open (char *f_path) {
     if(s.compare("heap")==0){
         genericDB = new HeapDBFile();
     }
-    // else if(s.compare("sorted")==0){
-    //     genericDB = new DBFileSorted();
-    //     string temp;
-    //     getline(f_meta, temp);
-    //     int runLength = stoi(temp);
-    //     temp.clear();
-    //     getline(f_meta, temp);
-    //     orderMaker->numAtts = stoi(temp);
-    //     for(int i=0; i<orderMaker->numAtts; i++){
-    //         temp.clear();
-    //         getline(f_meta, temp);
-    //         orderMaker->whichAtts[i] = stoi(temp);
-    //         temp.clear();
-    //         getline(f_meta, temp);
-    //         if(temp.compare("Int")==0){
-    //             orderMaker->whichTypes[i] = Int;
-    //         }
-    //         else if(temp.compare("Double")==0){
-    //             orderMaker->whichTypes[i] = Double;
-    //         }
-    //         else if(temp.compare("String")==0){
-    //             orderMaker->whichTypes[i] = String;
-    //         }
-    //     }
-    //     ((DBFileSorted*)genericDB)->orderMaker = orderMaker;
-    //     ((DBFileSorted*)genericDB)->runLength = runLength;
-    //     orderMaker->Print();
-    // }
+    else if(s.compare("sorted")==0){
+        genericDB = new SortedDBFile();
+        string temp;
+        getline(f_meta, temp);
+        int runLength = stoi(temp);
+        temp.clear();
+        getline(f_meta, temp);
+        orderMaker->numAtts = stoi(temp);
+        for(int i=0; i<orderMaker->numAtts; i++){
+            temp.clear();
+            getline(f_meta, temp);
+            orderMaker->whichAtts[i] = stoi(temp);
+            temp.clear();
+            getline(f_meta, temp);
+            if(temp.compare("Int")==0){
+                orderMaker->whichTypes[i] = Int;
+            }
+            else if(temp.compare("Double")==0){
+                orderMaker->whichTypes[i] = Double;
+            }
+            else if(temp.compare("String")==0){
+                orderMaker->whichTypes[i] = String;
+            }
+        }
+        ((SortedDBFile*)genericDB)->orderMaker = orderMaker;
+        ((SortedDBFile*)genericDB)->runLength = runLength;
+        orderMaker->Print();
+    }
     // else if(s.compare("tree")==0){
     //     genericDB = new DBFileTree();
     // }
