@@ -45,6 +45,7 @@ class OrderMaker {
 	friend class SortedDBFile;
 	friend class CNF;
 	friend class DBFile;
+	friend class Project2Test;
 
 	int numAtts;
 
