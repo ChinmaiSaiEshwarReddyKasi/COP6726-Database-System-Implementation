@@ -93,8 +93,8 @@ void SortedDBFile::readMode(){
             pthread_join (*thread, NULL);
             delete thread;
         }
-        char* mergefileName = "temporaryMergeFile.bin";
-        char* tempfileName = "temporaryFile.bin";
+        char* mergefileName = "tempMergedFile.bin";
+        char* tempfileName = "tempDifFile.bin";
 
         DBFile fileCombined;
         DBFile tempFile;

@@ -16,53 +16,56 @@ DBFile::DBFile () {
 
 }
 
-int DBFile::Create (char *f_path, fType f_type, void *startup) {
-    ofstream metaFile;
-    char fileName[100];
-    int runLength = 0;
+int DBFile::Create (char *file_path, fType type_file, void *begin) {
+    char file_metadata[100];
+    sprintf (file_metadata, "%s.meta", file_path);
+    cout<<"meta data in "<<file_metadata<<endl;
+    ofstream metadata_file;
+    metadata_file.open(file_metadata);
     OrderMaker* om = nullptr;
-    sprintf (fileName, "%s.meta", f_path);
-    cout<<"meta data in "<<fileName<<endl;
-    metaFile.open(fileName);
-
-    if(f_type == sorted){
-        metaFile << "sorted"<< endl;
-        genericDB = new SortedDBFile();
-    }
-    else if(f_type==heap){		
-        metaFile << "heap" << endl;
+    int runLength = 0;
+    // write in file type
+    if(type_file == heap){
+        metadata_file << "heap" << endl;
         genericDB = new HeapDBFile();
     }
-    /*else if(f_type==tree){
-        metaFile << "tree"<< endl;
+    else if(type_file==sorted){
+        metadata_file << "sorted"<< endl;
+        genericDB = new SortedDBFile();
+    }
+    /*else if(type_file==tree){
+        metadata_file << "tree"<< endl;
         genericDB = new DBFileTree();
     }*/
-
-    if(startup!= nullptr) {
-        SortedInfo* s = ((SortedInfo*)startup);
-        om = s->myOrder;
-        runLength = s->runLength;
-        metaFile << runLength << endl;
-        metaFile << om->numAtts << endl;
+    if(begin!= nullptr) {
+        SortedInfo* sortedInfo = ((SortedInfo*)begin);
+        om = sortedInfo->myOrder;
+        runLength = sortedInfo->runLength;
+        metadata_file << runLength << endl;
+        metadata_file << om->numAtts << endl;
         for (int i = 0; i < om->numAtts; i++) {
-            metaFile << om->whichAtts[i] << endl;
-            if (om->whichTypes[i] == String)
-                metaFile << "String" << endl;
-            else if (om->whichTypes[i] == Int)
-                metaFile << "Int" << endl;
-            else if(om->whichTypes[i] == Double)
-                metaFile << "Double" << endl;
+            metadata_file << om->whichAtts[i] << endl;
+            if (om->whichTypes[i] == Int)
+                metadata_file << "Int" << endl;
+            else if (om->whichTypes[i] == Double)
+                metadata_file << "Double" << endl;
+            else if(om->whichTypes[i] == String)
+                metadata_file << "String" << endl;
         }
-        // store om and runLength into subclass
-        if(f_type == heap){}
-        else if(f_type==sorted){
+        // store orderMaker and runLength into subclass
+        if(type_file == heap){
+
+        }
+        else if(type_file==sorted){
             ((SortedDBFile*)genericDB)->om = om;
             ((SortedDBFile*)genericDB)->runLength = runLength;
         }
-        else if(f_type==tree){}
+        else if(type_file==tree){
+
+        }
     }
-    metaFile.close();
-    int res = genericDB->Create(f_path, f_type, startup);
+    metadata_file.close();
+    int res = genericDB->Create(file_path, type_file, begin);
     return res;
 }
 
@@ -70,38 +73,38 @@ void DBFile::Load (Schema &f_schema, char *loadpath) {
     genericDB->Load(f_schema, loadpath);
 }
 
-int DBFile::Open (char *f_path) {
-    string s;
-    char fileName[100];
-    ifstream metaFile(fileName);
-    sprintf (fileName, "%s.meta", f_path);
+int DBFile::Open (char *file_path) {
     OrderMaker* om = new OrderMaker();
+    char file_metadata[100];
+    sprintf (file_metadata, "%s.meta", file_path);
+    ifstream metadata_file(file_metadata);
 
-    getline(metaFile, s);
+    string s;
+    getline(metadata_file, s);
     if(s.compare("heap")==0){
         genericDB = new HeapDBFile();
     }
     else if(s.compare("sorted")==0){
         genericDB = new SortedDBFile();
-        string t;
-        getline(metaFile, t);
-        int runLength = stoi(t);
-        t.clear();
-        getline(metaFile, t);
-        om->numAtts = stoi(t);
+        string temporary;
+        getline(metadata_file, temporary);
+        int runLength = stoi(temporary);
+        temporary.clear();
+        getline(metadata_file, temporary);
+        om->numAtts = stoi(temporary);
         for(int i=0; i<om->numAtts; i++){
-            t.clear();
-            getline(metaFile, t);
-            om->whichAtts[i] = stoi(t);
-            t.clear();
-            getline(metaFile, t);
-            if(t.compare("Int")==0){
+            temporary.clear();
+            getline(metadata_file, temporary);
+            om->whichAtts[i] = stoi(temporary);
+            temporary.clear();
+            getline(metadata_file, temporary);
+            if(temporary.compare("Int")==0){
                 om->whichTypes[i] = Int;
             }
-            else if(t.compare("Double")==0){
+            else if(temporary.compare("Double")==0){
                 om->whichTypes[i] = Double;
             }
-            else if(t.compare("String")==0){
+            else if(temporary.compare("String")==0){
                 om->whichTypes[i] = String;
             }
         }
@@ -112,8 +115,8 @@ int DBFile::Open (char *f_path) {
     // else if(s.compare("tree")==0){
     //     genericDB = new DBFileTree();
     // }
-    metaFile.close();
-    int res = genericDB->Open(f_path);
+    metadata_file.close();
+    int res = genericDB->Open(file_path);
     return res;
 }
 
@@ -122,19 +125,19 @@ void DBFile::MoveFirst () {
 }
 
 int DBFile::Close () {
-    int ans = genericDB->Close();
+    int res = genericDB->Close();
     delete genericDB;
-    return ans;
+    return res;
 }
 
-void DBFile::Add (Record &rec) {
-    genericDB->Add(rec);
+void DBFile::Add (Record &Record) {
+    genericDB->Add(Record);
 }
 
-int DBFile::GetNext (Record &fetchme) {
-    return genericDB->GetNext(fetchme);
+int DBFile::GetNext (Record &bringBack) {
+    return genericDB->GetNext(bringBack);
 }
 
-int DBFile::GetNext (Record &fetchme, CNF &cnf, Record &literal) {
-    return genericDB->GetNext(fetchme, cnf, literal);
+int DBFile::GetNext (Record &bringBack, CNF &cnf, Record &literal) {
+    return genericDB->GetNext(bringBack, cnf, literal);
 }
