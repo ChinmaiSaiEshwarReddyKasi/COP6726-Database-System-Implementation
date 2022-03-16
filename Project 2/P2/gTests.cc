@@ -27,10 +27,16 @@ protected:
 };
 
 TEST_F(Project2Test, TestCreatingFile) {
-    struct {OrderMaker *o; int l;} startup = {&om, 16};
-    int aa = d->Create("./gtest.bin", sorted, &startup);
+    struct {OrderMaker *o; int l;} s = {&om, 16};
+    int res = d->Create("./gtest.bin", sorted, &s);
     d->Close();
-    EXPECT_EQ(aa, 1);
+    EXPECT_EQ(res, 1);
+}
+
+TEST_F(Project2Test, TestCreatingAndClosingFile) {
+    struct {OrderMaker *o; int l;} s = {&om, 16};
+    d->Create("./gtest.bin", sorted, &s);
+    EXPECT_EQ(d->Close(), 1);
 }
 
 TEST_F(Project2Test, TestOpeningClosingFile) {
