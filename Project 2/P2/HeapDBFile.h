@@ -1,3 +1,5 @@
+#ifndef HEAPDBFILE_H
+#define HEAPDBFILE_H
 #include "DBFile.h"
 
 class HeapDBFile : public GenericDBFile{
@@ -22,3 +24,4 @@ public:
 	int GetNext (Record &fetchme, CNF &cnf, Record &literal);
 
 };
+#endif
