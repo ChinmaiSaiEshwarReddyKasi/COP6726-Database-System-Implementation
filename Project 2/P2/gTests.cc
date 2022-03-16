@@ -26,20 +26,20 @@ protected:
     
 };
 
-TEST_F(Project2Test, TestCreatingFile) {
+TEST_F(Project2Test, TestCreatingSortedFile) {
     struct {OrderMaker *o; int l;} s = {&om, 16};
     int res = d->Create("./gtest.bin", sorted, &s);
     d->Close();
     EXPECT_EQ(res, 1);
 }
 
-TEST_F(Project2Test, TestCreatingAndClosingFile) {
+TEST_F(Project2Test, TestCreatingAndClosingSortedFile) {
     struct {OrderMaker *o; int l;} s = {&om, 16};
     d->Create("./gtest.bin", sorted, &s);
     EXPECT_EQ(d->Close(), 1);
 }
 
-TEST_F(Project2Test, TestOpeningClosingFile) {
+TEST_F(Project2Test, TestOpeningClosingSortedFile) {
     d->Open("./gtest.bin");
     EXPECT_EQ(d->Close(), 1);
 }
