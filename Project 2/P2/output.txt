@@ -1,0 +1,122 @@
+ 
+** IMPORTANT: MAKE SURE THE INFORMATION BELOW IS CORRECT **
+ catalog location: 	catalog
+ tpch files dir: 	tpch/10M/
+ heap files dir: 	db/
+ 
+
+ select test option: 
+ 	 1. create sorted dbfile
+ 	 2. scan a dbfile
+ 	 3. run some query 
+ 	 
+ select table: 
+	 1. nation 
+	 2. region 
+	 3. customer 
+	 4. part 
+	 5. partsupp 
+	 6. supplier 
+	 7. orders 
+	 8. lineitem 
+ 	 	
+ specify runlength:
+	  input from file : tpch/10M/region.tbl
+
+ select option for : db/region.bin
+ 	 1. add a few (1 to 1k recs)
+ 	 2. add a lot (1k to 1e+06 recs) 
+ 	 3. run some query 
+ 	 
+ specify sort ordering (when done press ctrl-D):
+	 
+ output to dbfile : db/region.bin
+meta data in db/region.bin.meta
+NumAtts =     1
+  0:     1 String
+meta data in tempDifFile.bin.meta
+Closed the file.The total length of the file was 2 pages.
+meta data in tempMergedFile.bin.meta
+Closed the file.The total length of the file was 2 pages.
+Closed the file.The total length of the file was 0 pages.
+
+	 added 5 recs..so far 5
+
+ create finished.. 5 recs inserted
+
+
+****************************************************************************************************************************************************************************************
+ 
+** IMPORTANT: MAKE SURE THE INFORMATION BELOW IS CORRECT **
+ catalog location: 	catalog
+ tpch files dir: 	tpch/10M/
+ heap files dir: 	db/
+ 
+
+ select test option: 
+ 	 1. create sorted dbfile
+ 	 2. scan a dbfile
+ 	 3. run some query 
+ 	 
+ select table: 
+	 1. nation 
+	 2. region 
+	 3. customer 
+	 4. part 
+	 5. partsupp 
+	 6. supplier 
+	 7. orders 
+	 8. lineitem 
+ 	  scan : db/region.bin
+NumAtts =     1
+  0:     1 String
+
+ scanned 0 recs 
+
+
+****************************************************************************************************************************************************************************************
+ 
+** IMPORTANT: MAKE SURE THE INFORMATION BELOW IS CORRECT **
+ catalog location: 	catalog
+ tpch files dir: 	tpch/10M/
+ heap files dir: 	db/
+ 
+
+ select test option: 
+ 	 1. create sorted dbfile
+ 	 2. scan a dbfile
+ 	 3. run some query 
+ 	 
+ select table: 
+	 1. nation 
+	 2. region 
+	 3. customer 
+	 4. part 
+	 5. partsupp 
+	 6. supplier 
+	 7. orders 
+	 8. lineitem 
+ 	 
+ enter CNF predicate (when done press ctrl-D):
+	NumAtts =     1
+  0:     4 String
+( Att 6 from left record = Att 0 from literal record (String))  AND
+( Att 5 from left record > Att 1 from literal record (Double)) 
+Higher bound for original data: 233Lower bound for original data: 0Higher bound after Binary Search: 233Lower bound after Binary Search: 0c_custkey: [7154], c_name: [Customer#000007154], c_address: [J0joh6duD3wzXjUNqe3Ac9q,], c_nationkey: [2], c_phone: [12-632-538-6536], c_acctbal: [9995.94], c_mktsegment: [AUTOMOBILE], c_comment: [blithely. quickly unusual ideas integrate regular, regular courts! furiously even deposits use]
+c_custkey: [6278], c_name: [Customer#000006278], c_address: [F kMurdAhFU0C2KEiojmsS5gWlgxPZ5Q49iZl], c_nationkey: [5], c_phone: [15-299-327-8860], c_acctbal: [9996.76], c_mktsegment: [AUTOMOBILE], c_comment: [detect slyly unusual hockey players. regular requests after the final ]
+c_custkey: [74952], c_name: [Customer#000074952], c_address: [6c,L9pc,xvDRdqm3I2HZ9H3VvFIWu7mUej], c_nationkey: [6], c_phone: [16-602-657-3509], c_acctbal: [9996.55], c_mktsegment: [AUTOMOBILE], c_comment: [structions. platelets sleep carefull]
+c_custkey: [137395], c_name: [Customer#000137395], c_address: [cZ7Qyu5r0IlyT8a07WRy], c_nationkey: [10], c_phone: [20-599-408-2028], c_acctbal: [9997.15], c_mktsegment: [AUTOMOBILE], c_comment: [ asymptotes. final accounts against the permanent requests use fluffi]
+c_custkey: [75185], c_name: [Customer#000075185], c_address: [P,n9nTsQXulNLTUYoJjEDcqWVGeCs7], c_nationkey: [13], c_phone: [23-677-978-3157], c_acctbal: [9997.33], c_mktsegment: [AUTOMOBILE], c_comment: [ blithely ironic packages detect carefully. express request]
+c_custkey: [117038], c_name: [Customer#000117038], c_address: [utfflgm0AlJHhZDOPQpVjJU5oIIGUQIKJ6,BgM], c_nationkey: [14], c_phone: [24-904-418-5180], c_acctbal: [9996.05], c_mktsegment: [AUTOMOBILE], c_comment: [ blithely blithe instructions are furiously blithely pendin]
+c_custkey: [120842], c_name: [Customer#000120842], c_address: [DnoD1r9ynjUQm89brwBMS4Y], c_nationkey: [14], c_phone: [24-969-957-5164], c_acctbal: [9996.51], c_mktsegment: [AUTOMOBILE], c_comment: [side the furiously even ideas. boldly final packages wake furiously sil]
+c_custkey: [69321], c_name: [Customer#000069321], c_address: [ZXuxxYWp7wMeeHT j5dAZ], c_nationkey: [15], c_phone: [25-347-101-1161], c_acctbal: [9999.96], c_mktsegment: [AUTOMOBILE], c_comment: [ily even accounts. slyly regula]
+c_custkey: [137020], c_name: [Customer#000137020], c_address: [A4oAv3epkg1kRFr], c_nationkey: [15], c_phone: [25-746-972-5150], c_acctbal: [9996], c_mktsegment: [AUTOMOBILE], c_comment: [ly regular pinto beans? carefully ironic excuses sleep slyly about the even, even foxes. c]
+c_custkey: [2760], c_name: [Customer#000002760], c_address: [rBp4g8qSuOUdGDJ7gcIWulqHomATSRpukHd], c_nationkey: [16], c_phone: [26-241-420-9650], c_acctbal: [9996.34], c_mktsegment: [AUTOMOBILE], c_comment: [s. even foxes affix slowly even, bold packages. express, even theodolites boost]
+c_custkey: [118361], c_name: [Customer#000118361], c_address: [23V1LuxMN4xg8GMrEB5QM], c_nationkey: [16], c_phone: [26-449-303-7447], c_acctbal: [9996.12], c_mktsegment: [AUTOMOBILE], c_comment: [deposits haggle furiously around the slyly express accounts. final, f]
+c_custkey: [15607], c_name: [Customer#000015607], c_address: [C79Zv4hHcT9uNXctx5FKRxhglekdG b], c_nationkey: [24], c_phone: [34-714-539-7404], c_acctbal: [9997.84], c_mktsegment: [AUTOMOBILE], c_comment: [y regular pinto beans. slyly final packages about th]
+c_custkey: [119509], c_name: [Customer#000119509], c_address: [JBDnrAGcDrXR6qp6P1,meXjQ1HYB7], c_nationkey: [24], c_phone: [34-922-867-4355], c_acctbal: [9995.71], c_mktsegment: [AUTOMOBILE], c_comment: [sts. dependencies x-ray along the blithely ironic instructions. carefully express deposits at the special asympt]
+c_custkey: [148533], c_name: [Customer#000148533], c_address: [DUFKWFJ2GzbqCpXlS9XFjY], c_nationkey: [24], c_phone: [34-966-181-7437], c_acctbal: [9997.1], c_mktsegment: [AUTOMOBILE], c_comment: [equests. carefully ironic foxes along the furiously even de]
+
+ query over db/customer.bin returned 14 recs
+
+

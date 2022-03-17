@@ -1,0 +1,3 @@
+3
+3
+(c_mktsegment='AUTOMOBILE') AND (c_acctbal > 9995.0)
