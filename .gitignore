@@ -34,5 +34,6 @@
 sed*
 .vscode/
 *.bin
+*.bin.meta
 *.tbl
 *.nfs*
