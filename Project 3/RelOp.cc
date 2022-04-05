@@ -2,231 +2,225 @@
 #include <iostream>
 #include "BigQ.h"
 
-//========================================SelectFile
-typedef struct {
-    DBFile &inFile;
+
+typedef struct SFArgs{
     Pipe &outPipe;
-    CNF &selOp;
+    DBFile &inFile;
     Record &literal;
-} WorkerArg1;
-void* workerMain1(void* arg){
-    WorkerArg1* workerArg = (WorkerArg1*) arg;
+    CNF &selOp;
+};
+
+void* SFMain(void* arg){
+    SFArgs* sfArgs = (SFArgs*) arg;
     Record rec;
-    while(workerArg->inFile.GetNext(rec, workerArg->selOp, workerArg->literal)){
-        workerArg->outPipe.Insert(&rec);
+    while(sfArgs->inFile.GetNext(rec, sfArgs->selOp, sfArgs->literal)){
+        sfArgs->outPipe.Insert(&rec);
     }
-    workerArg->outPipe.ShutDown();
+    sfArgs->outPipe.ShutDown();
     return NULL;
 }
 
 void SelectFile::Run (DBFile &inFile, Pipe &outPipe, CNF &selOp, Record &literal) {
-    WorkerArg1* workerArg = new WorkerArg1{inFile, outPipe, selOp, literal};
-    pthread_create(&worker, NULL, workerMain1, (void*) workerArg);
-}
-
-void SelectFile::WaitUntilDone () {
-	pthread_join (worker, NULL);
+    SFArgs* sfArgs = new SFArgs{outPipe, inFile, literal, selOp};
+    pthread_create(&thread, NULL, SFMain, (void*) sfArgs);
 }
 
 void SelectFile::Use_n_Pages (int runlen) {
 
 }
 
+void SelectFile::WaitUntilDone () {
+	pthread_join (thread, NULL);
+}
 
-//========================================SelectPipe
-typedef struct {
-    Pipe &inPipe;
-    Pipe &outPipe;
+
+
+typedef struct SPArgs{
     CNF &selOp;
+    Pipe &outPipe;
     Record &literal;
-} WorkerArg2;
-void* workerMain2(void*arg){
-    ComparisonEngine comp;
-    WorkerArg2* workerArg = (WorkerArg2*) arg;
-    Record rec;
-    while(workerArg->inPipe.Remove(&rec)){
-        if(comp.Compare(&rec, &workerArg->literal, &workerArg->selOp)){
-            workerArg->outPipe.Insert(&rec);
+    Pipe &inPipe;
+};
+void* SPMain(void*arg){
+    ComparisonEngine ce;
+    SPArgs* spArgs = (SPArgs*) arg;
+    Record r;
+    while(spArgs->inPipe.Remove(&r)){
+        if(ce.Compare(&r, &spArgs->literal, &spArgs->selOp)){
+            spArgs->outPipe.Insert(&r);
         }
     }
-    workerArg->outPipe.ShutDown();
+    spArgs->outPipe.ShutDown();
     return NULL;
 }
 
 void SelectPipe::Run (Pipe &inPipe, Pipe &outPipe, CNF &selOp, Record &literal) {
-    WorkerArg2* workerArg = new WorkerArg2{inPipe, outPipe, selOp, literal};
-    pthread_create(&worker, NULL, workerMain2, (void*) workerArg);
-}
-
-void SelectPipe::WaitUntilDone () {
-	pthread_join (worker, NULL);
+    SPArgs* spArgs = new SPArgs{selOp, outPipe, literal, inPipe};
+    pthread_create(&thread, NULL, SPMain, (void*) spArgs);
 }
 
 void SelectPipe::Use_n_Pages (int runlen) {
 
 }
 
+void SelectPipe::WaitUntilDone () {
+	pthread_join (thread, NULL);
+}
 
 
-//========================================Sum
-typedef struct {
+typedef struct SumArgs{
     Pipe &inPipe;
-    Pipe &outPipe;
     Function &computeMe;
-} WorkerArg3;
-void* workerMain3(void*arg){
-    int intSum = 0, intResult = 0;
-    double doubleSum = 0.0, doubleResult = 0.0;
-    ComparisonEngine comp;
-    WorkerArg3* workerArg = (WorkerArg3*) arg;
-    Record rec;
-    Type t;
-    while(workerArg->inPipe.Remove(&rec)){
-        t = workerArg->computeMe.Apply(rec, intResult, doubleResult);
-        if(t==Int){
-            intSum += intResult;
+    Pipe &outPipe;
+};
+
+void* SumMain(void*arg){
+    int ISum = 0;
+    int IRes = 0;
+    double DSum = 0.0;
+    double DRes = 0.0;
+    SumArgs* sumArgs = (SumArgs*) arg;
+    Record r;
+    Type type;
+    while(sumArgs->inPipe.Remove(&r)){
+        type = sumArgs->computeMe.Apply(r, IRes, DRes);
+        if(type==Int){
+            ISum += IRes;
         }
         else{
-            doubleSum += doubleResult;
+            DSum += DRes;
         }
     }
 
-    Attribute DA = {"SUM", t};
-    Schema out_sch ("out_sch", 1, &DA);
-    Record res;
-    char charsRes[100];
-    if(t==Int){
-        sprintf(charsRes, "%d|", intSum);
+    Attribute att = {"SUM", type};
+    Schema out_sch ("out_sch", 1, &att);
+    Record result;
+    char name[100];
+    if(type==Int){
+        sprintf(name, "%d|", ISum);
     }
     else{
-        sprintf(charsRes, "%lf|", doubleSum);
+        sprintf(name, "%lf|", DSum);
     }
-    res.ComposeRecord(&out_sch, charsRes);
-    workerArg->outPipe.Insert(&res);
-    workerArg->outPipe.ShutDown();
+    result.ComposeRecord(&out_sch, name);
+    sumArgs->outPipe.Insert(&result);
+    sumArgs->outPipe.ShutDown();
     return NULL;
 }
 void Sum::Run (Pipe &inPipe, Pipe &outPipe, Function &computeMe){
-    WorkerArg3* workerArg = new WorkerArg3{inPipe, outPipe, computeMe};
-    pthread_create(&worker, NULL, workerMain3, (void*) workerArg);
+    SumArgs* sumArgs = new SumArgs{inPipe, computeMe, outPipe};
+    pthread_create(&thread, NULL, SumMain, (void*) sumArgs);
 }
 void Sum::WaitUntilDone (){
-    pthread_join(worker, NULL);
+    pthread_join(thread, NULL);
 }
 void Sum::Use_n_Pages (int n){
 
 }
 
 
-
-
-
-
-
-//========================================GroupBy
-typedef struct {
+typedef struct GBArgs{
     Pipe &inPipe;
-    Pipe &outPipe;
     OrderMaker &groupAtts;
+    int pages;
     Function &computeMe;
-    int use_n_pages;
-} WorkerArg4;
-void* workerMain4(void*arg){
-    WorkerArg4* workerArg = (WorkerArg4*) arg;
+    Pipe &outPipe;
+};
+void* GBMain(void*arg){
+    GBArgs* gbArgs = (GBArgs*) arg;
     Pipe sorted(100);
-    BigQ bigQ(workerArg->inPipe, sorted, workerArg->groupAtts, workerArg->use_n_pages);
-    int intRes = 0, intSum = 0;
-    double doubleRes = 0.0, doubleSum = 0.0;
-    ComparisonEngine cmp;
-    Record prev;
-    Record cur;
-    Type t;
-    Attribute DA = {"SUM", t};
-    Schema out_sch ("out_sch", 1, &DA);
-    bool firstTime = true;
-    while(sorted.Remove(&cur)){
-        if(!firstTime && cmp.Compare(&cur, &prev, &workerArg->groupAtts)!=0){
-            // different, this is a new group
-//            cur.Print(&workerArg->groupAtts);
-//            prev.Print(&workerArg->groupAtts);
+    int ISum = 0;
+    int IRes = 0;
+    double DSum = 0.0;
+    double DRes = 0.0;
+    ComparisonEngine ce;
+    BigQ bigQ(gbArgs->inPipe, sorted, gbArgs->groupAtts, gbArgs->pages);
+    Record last;
+    Record now;
+    Type type;
+    Attribute att = {"SUM", type};
+    Schema out_sch ("out_sch", 1, &att);
+    bool checkFirst = true;
+    while(sorted.Remove(&now)){
+        if(!checkFirst && ce.Compare(&now, &last, &gbArgs->groupAtts)!=0){
             cout<<"==="<<endl;
-            Record res;
-            char charsRes[100];
-            if(t==Int){
-                sprintf(charsRes, "%d|", intSum);
+            Record recordResult;
+            char name[100];
+            if(type==Int){
+                sprintf(name, "%d|", ISum);
             }
             else {
-                sprintf(charsRes, "%lf|", doubleSum);
+                sprintf(name, "%lf|", DSum);
             }
-            res.ComposeRecord(&out_sch, charsRes);
-            workerArg->outPipe.Insert(&res);
+            recordResult.ComposeRecord(&out_sch, name);
+            gbArgs->outPipe.Insert(&recordResult);
 
-            intSum = 0;
-            doubleSum = 0.0;
+            ISum = 0;
+            DSum = 0.0;
         }
-        // add to the previous group
-        firstTime = false;
-        t = workerArg->computeMe.Apply(cur, intRes, doubleRes);
-        if(t==Int){
-            intSum += intRes;
+        // add to the lastious group
+        checkFirst = false;
+        type = gbArgs->computeMe.Apply(now, IRes, DRes);
+        if(type==Int){
+            ISum += IRes;
         }
         else {
-            doubleSum += doubleRes;
+            DSum += DRes;
         }
-        prev.Copy(&cur);
+        last.Copy(&now);
     }
     // for the last group
-    Record res;
-    char charsRes[100];
-    if(t==Int){
-        sprintf(charsRes, "%d|", intSum);
+    Record recordResult;
+    char name[100];
+    if(type==Int){
+        sprintf(name, "%d|", ISum);
     }
     else {
-        sprintf(charsRes, "%lf|", doubleSum);
+        sprintf(name, "%lf|", DSum);
     }
-    res.ComposeRecord(&out_sch, charsRes);
-    workerArg->outPipe.Insert(&res);
-    workerArg->outPipe.ShutDown();
+    recordResult.ComposeRecord(&out_sch, name);
+    gbArgs->outPipe.Insert(&recordResult);
+    gbArgs->outPipe.ShutDown();
     return NULL;
 }
 void GroupBy::Run (Pipe &inPipe, Pipe &outPipe, OrderMaker &groupAtts, Function &computeMe){
-    WorkerArg4* workerArg = new WorkerArg4{inPipe, outPipe, groupAtts, computeMe, use_n_pages};
-    pthread_create(&worker, NULL, workerMain4, (void*) workerArg);
+    GBArgs* gbArgs = new GBArgs{inPipe, groupAtts, pages, computeMe, outPipe};
+    pthread_create(&thread, NULL, GBMain, (void*) gbArgs);
 }
 void GroupBy::WaitUntilDone (){
-    pthread_join(worker, NULL);
+    pthread_join(thread, NULL);
 }
 void GroupBy::Use_n_Pages (int n){
-    use_n_pages = n;
+    pages = n;
 }
+
 
 void Project::Run (Pipe &inPipe, Pipe &outPipe, int *keepMe, int numAttsInput, int numAttsOutput) {
-    //Construct parameters and send them to main worker
-    ProjectArg* projectArg = new ProjectArg;
-    projectArg->inPipe = &inPipe;
-    projectArg->outPipe = &outPipe;
-    projectArg->keepMe = keepMe;
-    projectArg->numAttsInput = numAttsInput;
-    projectArg->numAttsOutput = numAttsOutput;
-    pthread_create(&workerThread, NULL, ProjectWorker, (void*) projectArg);
+    PArgs* pa = new PArgs;
+    pa->inPipe = &inPipe;
+    pa->outPipe = &outPipe;
+    pa->keepMe = keepMe;
+    pa->numAttsInput = numAttsInput;
+    pa->numAttsOutput = numAttsOutput;
+    pthread_create(&thread, NULL, ProjectOperation, (void*) pa);
 }
 
-void* ProjectWorker (void* arg) {
-    ProjectArg* projectArg = (ProjectArg*) arg;
-    Record record;
-    //Suck records from input pipe and do the project, then put them into output pipe
-    while (projectArg->inPipe->Remove(&record) == 1) {
-        Record* tempRecord = new Record;
-        tempRecord->Consume(&record);
-        tempRecord->Project(projectArg->keepMe, projectArg->numAttsOutput, projectArg->numAttsInput);
-        projectArg->outPipe->Insert(tempRecord);     
+void* ProjectOperation (void* arg) {
+    PArgs* pa = (PArgs*) arg;
+    Record Prec;
+    //Projecting records
+    while (pa->inPipe->Remove(&Prec) == 1) {
+        Record* tempPrec = new Record;
+        tempPrec->Consume(&Prec);
+        tempPrec->Project(pa->keepMe, pa->numAttsOutput, pa->numAttsInput);
+        pa->outPipe->Insert(tempPrec);     
     }
-    projectArg->outPipe->ShutDown();
+    pa->outPipe->ShutDown();
     return NULL;
 }
 
 void Project::WaitUntilDone() {
-    pthread_join(workerThread, NULL);
+    pthread_join(thread, NULL);
 }
 
 void Project::Use_n_Pages(int n) {
@@ -234,93 +228,89 @@ void Project::Use_n_Pages(int n) {
 }
 
 void DuplicateRemoval::Run (Pipe &inPipe, Pipe &outPipe, Schema &mySchema) { 
-    //Construct parameters and send them to main worker
-    DuplicateRemovalArg* duplicateRemovalArg = new DuplicateRemovalArg;
-    duplicateRemovalArg->inPipe = &inPipe;
-    duplicateRemovalArg->outPipe = &outPipe;
-    OrderMaker* order = new OrderMaker(&mySchema);
-    duplicateRemovalArg->order = order;
+    DRArgs* drArgs = new DRArgs;
+    drArgs->inPipe = &inPipe;
+    drArgs->outPipe = &outPipe;
+    OrderMaker* seq = new OrderMaker(&mySchema);
+    drArgs->order = seq;
     if (this->runLen <= 0)
-        duplicateRemovalArg->runLen = 8;
+        drArgs->runLen = 8;
     else
-        duplicateRemovalArg->runLen = this->runLen;
-    pthread_create(&workerThread, NULL, DuplicateRemovalWorker, (void*) duplicateRemovalArg);
+        drArgs->runLen = this->runLen;
+    pthread_create(&thread, NULL, RemoveDuplicates, (void*) drArgs);
 }
 
-void* DuplicateRemovalWorker (void* arg) {
-    DuplicateRemovalArg* duplicateRemovalArg = (DuplicateRemovalArg*) arg;
-    ComparisonEngine comparisonEngine;
-    Record cur, last;
-    Pipe* sortedPipe = new Pipe(1000);
-    //Using BigQ to sort the records and put sorted records into a new pipe
-    BigQ* bq = new BigQ(*(duplicateRemovalArg->inPipe), *sortedPipe, *(duplicateRemovalArg->order), duplicateRemovalArg->runLen);
-    sortedPipe->Remove(&last);
+// Method to delete duplicates. We use BigQ to sort records and then check those records for duplicates.
+void* RemoveDuplicates(void* arg) {
+    DRArgs* drArgs = (DRArgs*) arg;
+    Record r1, r2;
     Schema schema ("catalog", "partsupp");
-    //Check duplicate records by using sorted pipe, only forward distinct records to output pipe
-    while (sortedPipe->Remove(&cur) == 1) {
-        if (comparisonEngine.Compare(&last, &cur, duplicateRemovalArg->order) != 0) {
-            Record* tempRecord = new Record;
-            tempRecord->Consume(&last);
-            duplicateRemovalArg->outPipe->Insert(tempRecord);
-            last.Consume(&cur);
+    ComparisonEngine ce;
+    Pipe* sortedPipe = new Pipe(1000);
+    BigQ* bq = new BigQ(*(drArgs->inPipe), *sortedPipe, *(drArgs->order), drArgs->runLen);
+    sortedPipe->Remove(&r2);
+    while (sortedPipe->Remove(&r1) == 1) {
+        if (ce.Compare(&r2, &r1, drArgs->order) != 0) {
+            Record* tr = new Record;
+            tr->Consume(&r2);
+            drArgs->outPipe->Insert(tr);
+            r2.Consume(&r1);
         }
     }
-    duplicateRemovalArg->outPipe->Insert(&last);
-    duplicateRemovalArg->outPipe->ShutDown();
+    drArgs->outPipe->Insert(&r2);
+    drArgs->outPipe->ShutDown();
     return NULL;
-}
-
-void DuplicateRemoval::WaitUntilDone () { 
-    pthread_join(workerThread, NULL);
 }
 
 void DuplicateRemoval::Use_n_Pages (int n) {
     this->runLen = n;
 }
 
-void WriteOut::Run (Pipe &inPipe, FILE *outFile, Schema &mySchema) {
-    //Construct parameters and send them to main worker
-    WriteOutArg* writeOutArg = new WriteOutArg;
-    writeOutArg->inPipe = &inPipe;
-    writeOutArg->outFile = outFile;
-    writeOutArg->schema = &mySchema;
-    pthread_create(&workerThread, NULL, WriteOutWorker, (void*) writeOutArg);
+void DuplicateRemoval::WaitUntilDone () { 
+    pthread_join(thread, NULL);
 }
 
-void* WriteOutWorker (void* arg) {
-    //Write records into file according to format defined in Print() method of Record
-    WriteOutArg* writeOutArg = (WriteOutArg*) arg;
-    Record cur;
-    while (writeOutArg->inPipe->Remove(&cur) == 1) {
-        int numOfAtts = writeOutArg->schema->GetNumAtts();
-        Attribute *attribute = writeOutArg->schema->GetAtts();
-        for (int i = 0; i < numOfAtts; i++) {
-            fprintf(writeOutArg->outFile, "%s:", attribute[i].name);
-            int pointer = ((int *) cur.bits)[i + 1];
-            fprintf(writeOutArg->outFile, "[");
-            if (attribute[i].myType == Int) {
-                int *writeOutInt = (int*) &(cur.bits[pointer]);
-                fprintf(writeOutArg->outFile, "%d", *writeOutInt);
+void WriteOut::Run (Pipe &inPipe, FILE *outFile, Schema &mySchema) {
+    WOArgs* woArgs = new WOArgs;
+    woArgs->inPipe = &inPipe;
+    woArgs->outFile = outFile;
+    woArgs->schema = &mySchema;
+    pthread_create(&thread, NULL, WriteOutMain, (void*) woArgs);
+}
+
+void* WriteOutMain(void* arg) {
+    WOArgs* woArgs = (WOArgs*) arg;
+    Record cRec;
+    while (woArgs->inPipe->Remove(&cRec) == 1) {
+        int nAtts = woArgs->schema->GetNumAtts();
+        Attribute *att = woArgs->schema->GetAtts();
+        for (int i = 0; i < nAtts; i++) {
+            fprintf(woArgs->outFile, "%s:", att[i].name);
+            int p = ((int *) cRec.bits)[i + 1];
+            fprintf(woArgs->outFile, "[");
+            if (att[i].myType == Int) {
+                int *woI = (int*) &(cRec.bits[p]);
+                fprintf(woArgs->outFile, "%d", *woI);
             }
-            else if (attribute[i].myType == Double) {
-                double *writeOutDouble = (double*) &(cur.bits[pointer]);
-                fprintf(writeOutArg->outFile, "%f", *writeOutDouble);
+            else if (att[i].myType == Double) {
+                double *woD = (double*) &(cRec.bits[p]);
+                fprintf(woArgs->outFile, "%f", *woD);
             }
-            else if (attribute[i].myType == String) {
-                char* writeOutString = (char*) &(cur.bits[pointer]);
-                fprintf(writeOutArg->outFile, "%s", writeOutString);
+            else if (att[i].myType == String) {
+                char* woS = (char*) &(cRec.bits[p]);
+                fprintf(woArgs->outFile, "%s", woS);
             }
-            fprintf(writeOutArg->outFile, "]");
-            if (i != numOfAtts - 1)
-                fprintf(writeOutArg->outFile, ", ");
+            fprintf(woArgs->outFile, "]");
+            if (i != nAtts - 1)
+                fprintf(woArgs->outFile, ", ");
         }
-        fprintf(writeOutArg->outFile, "\n");
+        fprintf(woArgs->outFile, "\n");
     }
     return NULL;
 }
 
 void WriteOut::WaitUntilDone () {
-    pthread_join(workerThread, NULL);
+    pthread_join(thread, NULL);
 }
 
 void WriteOut::Use_n_Pages (int n) { 
@@ -328,155 +318,149 @@ void WriteOut::Use_n_Pages (int n) {
 }
 
 void Join::Run (Pipe &inPipeL, Pipe &inPipeR, Pipe &outPipe, CNF &selOp, Record &literal) {
-    //Construct parameters and send them to main worker
-    JoinArg* joinArg = new JoinArg;
-    joinArg->inPipeL = &inPipeL;
-    joinArg->inPipeR = &inPipeR;
-    joinArg->outPipe = &outPipe;
-    joinArg->selOp = &selOp;
-    joinArg->literal = &literal;
+    JArgs* ja = new JArgs;
+    ja->inPipeL = &inPipeL;
+    ja->inPipeR = &inPipeR;
+    ja->outPipe = &outPipe;
+    ja->selOp = &selOp;
+    ja->literal = &literal;
     if (this->runLen <= 0)
-        joinArg->runLen = 8;
+        ja->runLen = 8;
     else
-        joinArg->runLen = this->runLen;
-    pthread_create(&workerThread, NULL, JoinWorker, (void*) joinArg);
+        ja->runLen = this->runLen;
+    pthread_create(&thread, NULL, JoinMain, (void*) ja);
 }
 
-void* JoinWorker(void* arg) {
-    JoinArg* joinArg = (JoinArg*) arg;
-    OrderMaker leftOrder, rightOrder;
-    joinArg->selOp->GetSortOrders(leftOrder, rightOrder);
-    //Decide to sort join merge or blocknested join
-    if (leftOrder.numAtts > 0 && rightOrder.numAtts > 0) {
-        cout << "Enter sort merge " << endl;
-        JoinWorker_Merge(joinArg, &leftOrder, & rightOrder);
-    }
-    else {
-        cout << "BlockNestJoin" << endl;
-        JoinWorker_BlockNested(joinArg);
-    }
-    joinArg->outPipe->ShutDown();
-    return NULL;
+//Method to merge multiple records into one.
+void JoinMergeRecords(Record* leftRecord, Record* rightRecord, Pipe* pipe) {
+    Record mRecs;
+    int RAtts = ((((int*) rightRecord->bits)[1]) / sizeof(int)) - 1;
+    int LAtts = ((((int*) leftRecord->bits)[1]) / sizeof(int)) - 1;
+    int* atts = new int[LAtts + RAtts];
+    for (int i = 0; i < LAtts; i++)
+        atts[i] = i;
+    for (int i = LAtts; i < LAtts + RAtts; i++)
+        atts[i] = i - LAtts;
+    mRecs.MergeRecords(leftRecord, rightRecord, LAtts, RAtts, atts, LAtts + RAtts, LAtts);
+    pipe->Insert(&mRecs);
 }
 
-//This method is used to merge two records into single record
-void JoinWorker_AddMergedRecord(Record* leftRecord, Record* rightRecord, Pipe* pipe) {
-    int numOfAttsLeft = ((((int*) leftRecord->bits)[1]) / sizeof(int)) - 1;
-    int numOfAttsRight = ((((int*) rightRecord->bits)[1]) / sizeof(int)) - 1;
-    int* attsToKeep = new int[numOfAttsLeft + numOfAttsRight];
-    for (int i = 0; i < numOfAttsLeft; i++)
-        attsToKeep[i] = i;
-    for (int i = numOfAttsLeft; i < numOfAttsLeft + numOfAttsRight; i++)
-        attsToKeep[i] = i - numOfAttsLeft;
-    Record mergedRecord;
-    mergedRecord.MergeRecords(leftRecord, rightRecord, numOfAttsLeft, numOfAttsRight, attsToKeep, numOfAttsLeft + numOfAttsRight, numOfAttsLeft);
-    pipe->Insert(&mergedRecord);
-}
+// Here we sort and merge by comparing the left and right records in the Pipe. Two Pipes are generated using BigQ
+void JoinMainMerge(JArgs* joinArg, OrderMaker* leftOrder, OrderMaker* rightOrder) {
 
-//Sort merge Join
-void JoinWorker_Merge(JoinArg* joinArg, OrderMaker* leftOrder, OrderMaker* rightOrder) {
-    //First using BigQ to sort given records in two pipes
-    Pipe* sortedLeftPipe = new Pipe(1000);
-    Pipe* sortedRightPipe = new Pipe(1000);
-    BigQ* tempL = new BigQ(*(joinArg->inPipeL), *sortedLeftPipe, *leftOrder, joinArg->runLen);
-    BigQ* tempR = new BigQ(*(joinArg->inPipeR), *sortedRightPipe, *rightOrder, joinArg->runLen);
-    // cout << "BigQ created" << endl;
-    Record leftRecord;
-    Record rightRecord;
-    bool isFinish = false;
-    if (sortedLeftPipe->Remove(&leftRecord) == 0)
-        isFinish = true;
-    if (sortedRightPipe->Remove(&rightRecord) == 0)
-        isFinish = true;
-    // cout << "BigQ outputed" << endl;
-    ComparisonEngine comparisonEngine;
-    //Then do the merge part, merge same record together to join
-    while (!isFinish) {
-        int compareRes = comparisonEngine.Compare(&leftRecord, leftOrder, &rightRecord, rightOrder);
-        //If left record equal to right record, we merge them together and insert it into output pipe
-        if (compareRes == 0) {
-            vector<Record*> vl;
-            vector<Record*> vr;
-            //Find all idential and continuous records in the left pipe and put them into vector
+    bool done = false;
+    Pipe* sortedRP = new Pipe(1000);
+    Record rightrec;
+    Pipe* sortedLP = new Pipe(1000);
+    BigQ* LQ = new BigQ(*(joinArg->inPipeL), *sortedLP, *leftOrder, joinArg->runLen);
+    Record leftrec;
+    ComparisonEngine ce;
+    BigQ* RQ = new BigQ(*(joinArg->inPipeR), *sortedRP, *rightOrder, joinArg->runLen);
+
+    if (sortedLP->Remove(&leftrec) == 0)
+        done = true;
+    if (sortedRP->Remove(&rightrec) == 0)
+        done = true;
+    
+    //Merge the similar records
+    while (!done) {
+        int resultCompare = ce.Compare(&leftrec, leftOrder, &rightrec, rightOrder);
+        //If left and right records are equal, we find the similar records in both the pipes and merge them and put in output pipe
+        if (resultCompare == 0) {
+            vector<Record*> Rleft;
+            vector<Record*> Rright;
             while (true) {
-                Record* oldLeftRecord = new Record;
-                oldLeftRecord->Consume(&leftRecord);
-                vl.push_back(oldLeftRecord);
-                if (sortedLeftPipe->Remove(&leftRecord) == 0) {
-                    isFinish = true;
+                Record* previousLR = new Record;
+                previousLR->Consume(&leftrec);
+                Rleft.push_back(previousLR);
+                if (sortedLP->Remove(&leftrec) == 0) {
+                    done = true;
                     break;
                 }
-                if (comparisonEngine.Compare(&leftRecord, oldLeftRecord, leftOrder) != 0) {
+                if (ce.Compare(&leftrec, previousLR, leftOrder) != 0) {
                     break;
                 }
             }
-            //Find all idential and continuous records in the right pipe and put them into vector
             while (true) {
-                Record* oldRightRecord = new Record;
-                oldRightRecord->Consume(&rightRecord);
-                // oldRightRecord->Print(&partsupp);
-                vr.push_back(oldRightRecord);
-                if (sortedRightPipe->Remove(&rightRecord) == 0) {
-                    isFinish = true;
+                Record* previousRR = new Record;
+                previousRR->Consume(&rightrec);
+                Rright.push_back(previousRR);
+                if (sortedRP->Remove(&rightrec) == 0) {
+                    done = true;
                     break;
                 }
-                if (comparisonEngine.Compare(&rightRecord, oldRightRecord, rightOrder) != 0) {
+                if (ce.Compare(&rightrec, previousRR, rightOrder) != 0) {
                     break;
                 }
             }
-            //Merge every part of them, and join
-            for (int i = 0; i < vl.size(); i++) {
-                for (int j = 0; j < vr.size(); j++) {
-                    JoinWorker_AddMergedRecord(vl[i], vr[j], joinArg->outPipe);
+            for (int i = 0; i < Rleft.size(); i++) {
+                for (int j = 0; j < Rright.size(); j++) {
+                    JoinMergeRecords(Rleft[i], Rright[j], joinArg->outPipe);
                 }
             }
-            vl.clear();
-            vr.clear();
+            Rleft.clear();
+            Rright.clear();
         }
-        //If left reocrd are larger, then we move right record
-        else if (compareRes > 0) {
-            if (sortedRightPipe->Remove(&rightRecord) == 0)
-                isFinish = true;
+        //Move to right pipe, if left pipe has larger records
+        else if (resultCompare > 0) {
+            if (sortedRP->Remove(&rightrec) == 0)
+                done = true;
         }
-        //If right record are larger, then we move left record
+        //Move to left pipe, if right pipe has larger records
         else {
-            if (sortedLeftPipe->Remove(&leftRecord) == 0)
-                isFinish = true;
+            if (sortedLP->Remove(&leftrec) == 0)
+                done = true;
         }
     }
     cout << "Finish read fron sorted pipe" << endl;
-    while (sortedLeftPipe->Remove(&leftRecord) == 1);
-    while (sortedRightPipe->Remove(&rightRecord) == 1);
+    while (sortedLP->Remove(&leftrec) == 1);
+    while (sortedRP->Remove(&rightrec) == 1);
 }
 
-//This is block nested join on default
-void JoinWorker_BlockNested(JoinArg* joinArg) {
-    //Literlly join every pair of records.
-    DBFile tempFile;
-    char* fileName = new char[100];
-    sprintf(fileName, "BlockNestedTemp%d.bin", pthread_self());
-    tempFile.Create(fileName, heap, NULL);
-    tempFile.Open(fileName);
-    Record record;
-    while (joinArg->inPipeL->Remove(&record) == 1)
-        tempFile.Add(record);
+void* JoinMain(void* arg) {
+    JArgs* ja = (JArgs*) arg;
+    OrderMaker lo, ro;
+    ja->selOp->GetSortOrders(lo, ro);
+    if (lo.numAtts > 0 && ro.numAtts > 0) {
+        cout << "Enter sort merge " << endl;
+        JoinMainMerge(ja, &lo, & ro);
+    }
+    else {
+        cout << "BlockNestJoin" << endl;
+        NestedJoin(ja);
+    }
+    ja->outPipe->ShutDown();
+    return NULL;
+}
+
+//This is nested join where we join every record to other.
+void NestedJoin(JArgs* joinArg) {
+    DBFile DbFile;
+    Record r;
+    Record r1, r2;
+    ComparisonEngine ce;
+
+    char* fName = new char[100];
+    sprintf(fName, "BlockNestedTemp%d.bin", pthread_self());
+    DbFile.Create(fName, heap, NULL);
+    DbFile.Open(fName);
+    while (joinArg->inPipeL->Remove(&r) == 1)
+        DbFile.Add(r);
     
-    Record record1, record2;
-    ComparisonEngine comparisonEngine;
-    while (joinArg->inPipeR->Remove(&record1) == 1) {
-        tempFile.MoveFirst();
-        while (tempFile.GetNext(record) == 1) {
-            if (comparisonEngine.Compare(&record1, &record2, joinArg->literal, joinArg->selOp)) {
-                JoinWorker_AddMergedRecord(&record1, &record2, joinArg->outPipe);
+    while (joinArg->inPipeR->Remove(&r1) == 1) {
+        DbFile.MoveFirst();
+        while (DbFile.GetNext(r) == 1) {
+            if (ce.Compare(&r1, &r2, joinArg->literal, joinArg->selOp)) {
+                JoinMergeRecords(&r1, &r2, joinArg->outPipe);
             }
         }
     }
 }
 
-void Join::WaitUntilDone () { 
-    pthread_join(workerThread, NULL);
-}
-    
 void Join::Use_n_Pages (int n) { 
     this->runLen = n;
+}
+
+void Join::WaitUntilDone () { 
+    pthread_join(thread, NULL);
 }
