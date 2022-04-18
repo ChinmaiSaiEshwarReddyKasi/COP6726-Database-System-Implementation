@@ -14,78 +14,7 @@ extern struct AndList *final;
 using namespace std;
 
 class Project4Tests : public ::testing::Test {};
-
-void PrintOperand(struct Operand *pOperand)
-{
-        if(pOperand!=NULL)
-        {
-                cout<<pOperand->value<<" ";
-        }
-        else
-                return;
-}
-
-void PrintComparisonOp(struct ComparisonOp *pCom)
-{
-        if(pCom!=NULL)
-        {
-                PrintOperand(pCom->left);
-                switch(pCom->code)
-                {
-                        case 1:
-                                cout<<" < "; break;
-                        case 2:
-                                cout<<" > "; break;
-                        case 3:
-                                cout<<" = ";
-                }
-                PrintOperand(pCom->right);
-
-        }
-        else
-        {
-                return;
-        }
-}
-void PrintOrList(struct OrList *pOr)
-{
-        if(pOr !=NULL)
-        {
-                struct ComparisonOp *pCom = pOr->left;
-                PrintComparisonOp(pCom);
-
-                if(pOr->rightOr)
-                {
-                        cout<<" OR ";
-                        PrintOrList(pOr->rightOr);
-                }
-        }
-        else
-        {
-                return;
-        }
-}
-void PrintAndList(struct AndList *pAnd)
-{
-        if(pAnd !=NULL)
-        {
-                struct OrList *pOr = pAnd->left;
-                PrintOrList(pOr);
-                if(pAnd->rightAnd)
-                {
-                        cout<<" AND ";
-                        PrintAndList(pAnd->rightAnd);
-                }
-        }
-        else
-        {
-                return;
-        }
-}
-
-char *fileName = "Statistics.txt";
-
-
+char *statFileName = "Statistics.txt";
 
 TEST_F(Project4Tests, TestingReadAndWriteOperation) {
 	
@@ -108,9 +37,9 @@ TEST_F(Project4Tests, TestingReadAndWriteOperation) {
 	ASSERT_NEAR (800000, result, 0.1);
 	
 	s.Apply(final, relName, 2);
-	s.Write(fileName);
+	s.Write(statFileName);
 	Statistics s1;
-	s1.Read(fileName);	
+	s1.Read(statFileName);	
 	cnf = "(s_suppkey>1000)";	
 	yy_scan_string(cnf);
 	yyparse();
@@ -125,7 +54,7 @@ TEST_F(Project4Tests, TestingStatisticsTestcase6) {
 	Statistics s;
     char *relName[] = { "partsupp", "supplier", "nation"};
 
-	s.Read(fileName);
+	s.Read(statFileName);
 	
 	s.AddRel(relName[0],800000);
 	s.AddAtt(relName[0], "ps_suppkey",10000);
@@ -154,7 +83,7 @@ TEST_F(Project4Tests, TestingStatisticsTestcase6) {
 	
 	s.Apply(final, relName, 3);
 	
-	s.Write(fileName);
+	s.Write(statFileName);
 
 }
 
@@ -163,7 +92,7 @@ TEST_F(Project4Tests, TestingStatisticsTestcase7) {
 	Statistics s;
     char *relName[] = { "orders", "lineitem"};
 
-	s.Read(fileName);
+	s.Read(statFileName);
 	
 
 	s.AddRel(relName[0],1500000);
@@ -183,7 +112,7 @@ TEST_F(Project4Tests, TestingStatisticsTestcase7) {
 	ASSERT_NEAR (2000405, result, 0.1);
 	
 	s.Apply(final, relName, 2);
-	s.Write(fileName);
+	s.Write(statFileName);
 	
 }
 
@@ -193,7 +122,7 @@ TEST_F(Project4Tests, TestingStatisticsTestcase8) {
 	Statistics s;
     char *relName[] = { "part",  "partsupp"};
 
-	s.Read(fileName);
+	s.Read(statFileName);
 	
 	s.AddRel(relName[0],200000);
 	s.AddAtt(relName[0], "p_partkey",200000);
@@ -215,7 +144,7 @@ TEST_F(Project4Tests, TestingStatisticsTestcase8) {
 	
 	s.Apply(final, relName,2);
 	
-	s.Write(fileName);
+	s.Write(statFileName);
 
 }
 
@@ -251,7 +180,7 @@ TEST_F(Project4Tests, TestingStatisticsTestcase9) {
 	
 	s.Apply(final, relName,3);
 	
-	s.Write(fileName);
+	s.Write(statFileName);
 
 }
 
@@ -260,7 +189,7 @@ TEST_F(Project4Tests, TestingStatisticsTestcase10) {
 	Statistics s;
     char *relName[] = { "customer", "orders", "lineitem","nation"};
 
-	s.Read(fileName);
+	s.Read(statFileName);
 	
 	s.AddRel(relName[0],150000);
 	s.AddAtt(relName[0], "c_custkey",150000);
@@ -295,7 +224,7 @@ TEST_F(Project4Tests, TestingStatisticsTestcase10) {
 	
 	s.Apply(final, relName, 4);  
 	
-	s.Write(fileName);
+	s.Write(statFileName);
 
 }
 
@@ -304,7 +233,7 @@ TEST_F(Project4Tests, TestingStatisticsTestcase11) {
 	Statistics s;
     char *relName[] = { "part",  "lineitem"};
 
-	s.Read(fileName);
+	s.Read(statFileName);
 	
 	s.AddRel(relName[0],200000);
 	s.AddAtt(relName[0], "p_partkey",200000);
@@ -326,7 +255,7 @@ TEST_F(Project4Tests, TestingStatisticsTestcase11) {
 	
 	s.Apply(final, relName,2);
 	
-	s.Write(fileName);
+	s.Write(statFileName);
 	
 }
 
