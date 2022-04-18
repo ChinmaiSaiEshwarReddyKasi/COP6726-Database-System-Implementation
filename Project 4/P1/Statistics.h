@@ -1,65 +1,76 @@
 #ifndef STATISTICS_H
 #define STATISTICS_H
+#include <iostream>
+#include <utility>
+#include <fstream>
 #include "ParseTree.h"
+#include <vector>
 #include <map>
 #include <string>
-#include <vector>
-#include <utility>
 #include <cstring>
-#include <fstream>
-#include <iostream>
 
 using namespace std;
-class RelationInfo;
-typedef map<string, RelationInfo> RelMap;
-class AttributeInfo;
-typedef map<string, AttributeInfo> AttrMap;
+class AttsData;
+class RelData;
+typedef map<string, AttsData> AttrMap;
+typedef map<string, RelData> RelMap;
 
-class AttributeInfo {
+class AttsData {
 public:
-    int distinctTuples;
-	string attrName;
+    int differentTuples;
+	string nameAtt;
 
-    AttributeInfo (string name, int num);
-	AttributeInfo ();
-    AttributeInfo &operator= (const AttributeInfo &copyMe);
-	AttributeInfo (const AttributeInfo &copyMe);
+	AttsData ();
+    AttsData (string name, int num);
+	AttsData (const AttsData &copyMe);
+
+    AttsData &operator= (const AttsData &copyMe);
 };
 
-class RelationInfo {
+class RelData {
 public:
-    bool isJoint;
+    RelData (string name, int t);
 	double numTuples;
-    AttrMap attrMap;
-	string relName;
-	map<string, string> relJoint;
-    RelationInfo (const RelationInfo &copyMe);
-	RelationInfo ();
-	RelationInfo &operator= (const RelationInfo &copyMe);
 	bool isRelationPresent (string _relName);
-    RelationInfo (string name, int tuples);
+    AttrMap attrMap;
+
+
+	map<string, string> JointRelation;
+	RelData &operator= (const RelData &copyMe);
+    RelData (const RelData &copyMe);
+	RelData ();
+    bool checkJoint;
+	string relName;
 };
 
 class Statistics {
 private:
-    int GetRelForOp (Operand *operand, char *relName[], int numJoin, RelationInfo &relInfo);
-    double ComOp (ComparisonOp *comOp, char *relName[], int numJoin);
-	double AndOp (AndList *andList, char *relName[], int numJoin);
-    double OrOp (OrList *orList, char *relName[], int numJoin);
+
+    double ComparisonOpr (ComparisonOp *cOP, char *rName[], int join);
+	double oprAnd (AndList *al, char *rName[], int join);
+    int GatherRelationDataOpr (Operand *o, char *rName[], int join, RelData &rData);
+    double oprOR (OrList *orOP, char *rName[], int join);
+
 public:
-    ~Statistics();
-	RelMap relMap;
-    Statistics operator= (Statistics &copyMe);
 	Statistics();
 	Statistics(Statistics &copyMe);
-    void Write(char *toWhere);
-    void CopyRel(char *oldName, char *newName);
+    ~Statistics();
+    Statistics operator= (Statistics &copyMe);
+
+
+	RelMap relMap;
     void AddRel(char *relName, int numTuples);
-    void Read(char *fromWhere);
-    double Estimate(struct AndList *parseTree, char **relNames, int numToJoin);
-    bool isRelInMap (string relName, RelationInfo &relInfo);
 	void AddAtt(char *relName, char *attrName, int numDistincts);
+    void CopyRel(char *oldName, char *newName);
+
+
+    void Read(char *fromWhere);
+    void Write(char *toWhere);
+
+
 	void Apply(struct AndList *parseTree, char *relNames[], int numToJoin);
+    double Estimate(struct AndList *parseTree, char **relNames, int numToJoin);
+    bool isRelInMap (string relName, RelData &relInfo);
 };
 
 #endif
