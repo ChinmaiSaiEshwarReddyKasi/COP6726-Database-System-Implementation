@@ -245,29 +245,24 @@ void Statistics :: Write (char* toWhere) {
     ofs.close ();
 }
 
-void Statistics::ParseRelation(struct Operand* op, string& relation) {
+void Statistics::processRelationData(struct Operand* op, string& r) {
 
-    string value(op->value);
-    string reln;
-    stringstream s;
+    string data(op->value);
+    stringstream ss;
 
     int i = 0;
 
-    while (value[i] != '_') {
+    while (data[i] != '_') {
 
-        if (value[i] == '.') {
-            relation = s.str();
+        if (data[i] == '.') {
+            r = ss.str();
             return;
         }
 
-        s << value[i];
+        ss << data[i];
 
         i++;
 
     }
-
-    //relation = s.str();
-    //reln = s.str();
-    //relation = tables[rel];
 
 }

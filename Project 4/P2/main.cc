@@ -4,248 +4,254 @@
 #include <assert.h>
 #include <string.h>
 
-#include "QueryTreeOperations.h"
-#include "QueryTreeNode.h"
+#include "NodeDataOperations.h"
+#include "NodeDataQuery.h"
 #include "ParseTree.h"
 #include "Statistics.h"
 
-extern struct NameList* attsToSelect;
-extern struct AndList* boolean;
-extern struct TableList* tables;
-extern int distinctAtts;
 extern struct NameList* groupingAtts;
-extern struct FuncOperator* finalFunction;
 extern int distinctFunc;
+extern struct FuncOperator* finalFunction;
+extern struct TableList* tables;
+extern struct AndList* boolean;
+extern int distinctAtts;
+extern struct NameList* attsToSelect;
 extern "C" {
 int yyparse (void);
 }
 
 
-vector<AndList> optimizeJoinOrder(vector<AndList> joins, Statistics* s){
-    AndList join;
-    int i = 0,smallestIdx = 0,count = 0,check=0;
-    double smallest = -1.0,guess = 0.0;
-    vector<string> joinedRelationsVec;
-	vector<AndList> newOrder;
-	newOrder.reserve(joins.size());
-	string rel1,rel2;
-	check++;
+vector<AndList> optimizer(vector<AndList> joins, Statistics* stat){
+    AndList al;
+	string data1;
+    int i = 0;
+	int sIndex = 0;
+	int inc = 0;
+	int validate=0;
+	string data2;
+    double leastValue = -1.0;
+	int estimate = 0.0;
+    vector<string> joinedData;
+	vector<AndList> result;
+	result.reserve(joins.size());
+	validate++;
 	while (joins.size() >= 2){
 		while (i < joins.size()){
-			join = joins[i];
-			check--;
-			s->ParseRelation(join.left->left->right, rel2);
-            s->ParseRelation(join.left->left->left, rel1);
-            check++;
-            char* rels[] = { (char*)rel1.c_str(), (char*)rel2.c_str() };
-			if (smallest == -1.0){
-                smallestIdx = i;
-				smallest = s->Estimate(&join, rels, 2);
+			al = joins[i];
+			validate--;
+			stat->processRelationData(al.left->left->right, data2);
+            stat->processRelationData(al.left->left->left, data1);
+            validate++;
+            char* rels[] = { (char*)data1.c_str(), (char*)data2.c_str() };
+			if (leastValue == -1.0){
+                sIndex = i;
+				leastValue = stat->Estimate(&al, rels, 2);
 			}else{
-				guess = s->Estimate(&join, rels, 2);
-				if (guess < smallest){
-					smallest = guess;
-					smallestIdx = i;
+				estimate = stat->Estimate(&al, rels, 2);
+				if (estimate < leastValue){
+					leastValue = estimate;
+					sIndex = i;
 				}
 			}
 			i++;
 		}
-        smallest = -1.0,i = 0;
-        newOrder.push_back(joins[smallestIdx]);
-		joinedRelationsVec.push_back(rel1);
-		joinedRelationsVec.push_back(rel2);
-		joins.erase(joins.begin() + smallestIdx);
-        count++;
+        leastValue = -1.0,i = 0;
+        result.push_back(joins[sIndex]);
+		joinedData.push_back(data1);
+		joinedData.push_back(data2);
+		joins.erase(joins.begin() + sIndex);
+        inc++;
 	}
-	newOrder.insert(newOrder.begin() + count, joins[0]);
-	return newOrder;
+	result.insert(result.begin() + inc, joins[0]);
+	return result;
 }
 
 
 int main(){
-	Statistics* s = new Statistics();
-	s->Read("Statistics.txt");
-    int pipeID = 1,check=0;
+	Statistics* stat = new Statistics();
+	stat->Read("Statistics.txt");
+    int pipeID = 1;
+	int check=0;
 	cout << "enter: ";
 	map<string, double> joinCosts;
-    string projectStart;
-	vector<AndList> joins, selects, joinDepSels;
+    string startProject;
+	vector<AndList> joins, selects, joinDS;
 	yyparse();
-    vector<string> relations;
-    QueryTreeOperations* queryTreeOperations = new QueryTreeOperations();
+    vector<string> r;
+    NodeDataOperations* nodeDataOp = new NodeDataOperations();
 
-    queryTreeOperations->GetTables(relations);
+    nodeDataOp->getTableData(r);
 	check++;
-    queryTreeOperations->GetJoinsAndSelects(joins, selects, joinDepSels, *s);
+    nodeDataOp->getOperationsData(joins, selects, joinDS, *stat);
 	cout << endl << "Number of selects: " << selects.size() << endl;
 	check--;
 	cout << "Number of joins: " << joins.size() << endl;
-    QueryTreeNode* topLevelNode = NULL;
-    QueryTreeNode* traversalNode;
-	QueryTreeNode* insertNode = NULL;
-    map<string, QueryTreeNode*> leafs;
+    NodeDataQuery* NodeDataTop = NULL;
+    NodeDataQuery* NodeDataTraversal;
+	NodeDataQuery* appendNodeData = NULL;
+    map<string, NodeDataQuery*> leafs;
 	TableList* iterTable = tables;
 	while (iterTable != 0){
 		if (iterTable->aliasAs == 0){
-            leafs.insert(std::pair<string, QueryTreeNode*>(iterTable->tableName, new QueryTreeNode()));
+            leafs.insert(std::pair<string, NodeDataQuery*>(iterTable->tableName, new NodeDataQuery()));
 		}else{
-            leafs.insert(std::pair<string, QueryTreeNode*>(iterTable->aliasAs, new QueryTreeNode()));
-            s->CopyRel(iterTable->tableName, iterTable->aliasAs);
+            leafs.insert(std::pair<string, NodeDataQuery*>(iterTable->aliasAs, new NodeDataQuery()));
+            stat->CopyRel(iterTable->tableName, iterTable->aliasAs);
 		}
-		insertNode = leafs[iterTable->aliasAs];
-        insertNode->schema = new Schema("catalog", iterTable->tableName);
+		appendNodeData = leafs[iterTable->aliasAs];
+        appendNodeData->schema = new Schema("catalog", iterTable->tableName);
         check++;
-		if (iterTable->aliasAs != 0){insertNode->schema->updateName(string(iterTable->aliasAs));}
+		if (iterTable->aliasAs != 0){appendNodeData->schema->updateName(string(iterTable->aliasAs));}
         check--;
-		topLevelNode = insertNode;
-		insertNode->outPipeID = pipeID++;
-        insertNode->SetType(SELECTF);
+		NodeDataTop = appendNodeData;
+		appendNodeData->outputNodeId = pipeID++;
+        appendNodeData->NodeTypeSetter(SELECTF);
 		string base(iterTable->tableName);
 		string path("bin/" + base + ".bin");
-		insertNode->path = strdup(path.c_str());
+		appendNodeData->p = strdup(path.c_str());
 		iterTable = iterTable->next;
 	}
     string table,attribute;
 	AndList selectIter;
 	for (unsigned i = 0; i < selects.size(); i++){
 		selectIter = selects[i];
-		(selectIter.left->left->left->code == NAME) ? s->ParseRelation(selectIter.left->left->left, table) : s->ParseRelation(selectIter.left->left->right, table);
-        projectStart = table;
-		traversalNode = leafs[table];
+		(selectIter.left->left->left->code == NAME) ? stat->processRelationData(selectIter.left->left->left, table) : stat->processRelationData(selectIter.left->left->right, table);
+        startProject = table;
+		NodeDataTraversal = leafs[table];
 		check--;
-		while (traversalNode->parent != NULL){
-			traversalNode = traversalNode->parent;
+		while (NodeDataTraversal->previous != NULL){
+			NodeDataTraversal = NodeDataTraversal->previous;
 		}
-		insertNode = new QueryTreeNode();
-		traversalNode->parent = insertNode;
+		appendNodeData = new NodeDataQuery();
+		NodeDataTraversal->previous = appendNodeData;
 		check++;
-        insertNode->type = SELECTP;
-        insertNode->schema = traversalNode->schema;
-        insertNode->cnf = &selects[i];
-        insertNode->left = traversalNode;
-        insertNode->outPipeID = pipeID++;
-		insertNode->lChildPipeID = traversalNode->outPipeID;
+        appendNodeData->nodeType = SELECTP;
+        appendNodeData->schema = NodeDataTraversal->schema;
+        appendNodeData->andList = &selects[i];
+        appendNodeData->nodeLeft = NodeDataTraversal;
+        appendNodeData->outputNodeId = pipeID++;
+		appendNodeData->leftNodeId = NodeDataTraversal->outputNodeId;
 		char* statApply = strdup(table.c_str());
 		check++;
-		s->Apply(&selectIter, &statApply, 1);
-		topLevelNode = insertNode;
+		stat->Apply(&selectIter, &statApply, 1);
+		NodeDataTop = appendNodeData;
 	}
 	check--;
 	if (joins.size() > 1){
-		joins = optimizeJoinOrder(joins, s);
+		joins = optimizer(joins, stat);
 	}
     AndList curJoin;
-    QueryTreeNode* rTreeNode;
-	QueryTreeNode* lTreeNode;
+    NodeDataQuery* rTreeNode;
+	NodeDataQuery* lTreeNode;
 	string reln1, reln2;
 	for (unsigned i = 0; i < joins.size(); i++){
 		curJoin = joins[i];
 		reln1 = "",reln2 = "";
-        s->ParseRelation(curJoin.left->left->right, reln2);
-		s->ParseRelation(curJoin.left->left->left, reln1);
+        stat->processRelationData(curJoin.left->left->right, reln2);
+		stat->processRelationData(curJoin.left->left->left, reln1);
         rTreeNode = leafs[reln2],lTreeNode = leafs[reln1];
         table = reln1;
-		while (rTreeNode->parent != NULL){
-            rTreeNode = rTreeNode->parent;
+		while (rTreeNode->previous != NULL){
+            rTreeNode = rTreeNode->previous;
 		}
-        while (lTreeNode->parent != NULL){
-            lTreeNode = lTreeNode->parent;
+        while (lTreeNode->previous != NULL){
+            lTreeNode = lTreeNode->previous;
         }
 
-		insertNode = new QueryTreeNode();
-        insertNode->cnf = &joins[i];
-		insertNode->rChildPipeID = rTreeNode->outPipeID;
-        insertNode->lChildPipeID = lTreeNode->outPipeID;
-		insertNode->outPipeID = pipeID++;
-        insertNode->type = JOIN;check--;
-        insertNode->right = rTreeNode;
-        rTreeNode->parent = insertNode;
-		insertNode->left = lTreeNode;check++;
-		lTreeNode->parent = insertNode;
-        insertNode->GenerateSchema();
-		topLevelNode = insertNode;
+		appendNodeData = new NodeDataQuery();
+        appendNodeData->andList = &joins[i];
+		appendNodeData->rightNodeId = rTreeNode->outputNodeId;
+        appendNodeData->leftNodeId = lTreeNode->outputNodeId;
+		appendNodeData->outputNodeId = pipeID++;
+        appendNodeData->nodeType = JOIN;check--;
+        appendNodeData->nodeRight = rTreeNode;
+        rTreeNode->previous = appendNodeData;
+		appendNodeData->nodeLeft = lTreeNode;check++;
+		lTreeNode->previous = appendNodeData;
+        appendNodeData->setSchema();
+		NodeDataTop = appendNodeData;
 	}
 	check--;
-	for (unsigned i = 0; i < joinDepSels.size(); i++){
-		traversalNode = topLevelNode;
-		insertNode = new QueryTreeNode();
-        insertNode->left = traversalNode;check--;
-		traversalNode->parent = insertNode;
-        insertNode->type = SELECTP;
-		insertNode->schema = traversalNode->schema;check++;
-        insertNode->lChildPipeID = traversalNode->outPipeID;
-		insertNode->cnf = &joinDepSels[i];
-		insertNode->outPipeID = pipeID++;
-		topLevelNode = insertNode;
+	for (unsigned i = 0; i < joinDS.size(); i++){
+		NodeDataTraversal = NodeDataTop;
+		appendNodeData = new NodeDataQuery();
+        appendNodeData->nodeLeft = NodeDataTraversal;check--;
+		NodeDataTraversal->previous = appendNodeData;
+        appendNodeData->nodeType = SELECTP;
+		appendNodeData->schema = NodeDataTraversal->schema;check++;
+        appendNodeData->leftNodeId = NodeDataTraversal->outputNodeId;
+		appendNodeData->andList = &joinDS[i];
+		appendNodeData->outputNodeId = pipeID++;
+		NodeDataTop = appendNodeData;
 	}
 	if (finalFunction != 0){
 		if (distinctFunc != 0){
-			insertNode = new QueryTreeNode();
-			insertNode->left = topLevelNode;check++;
-            insertNode->schema = topLevelNode->schema;
-            insertNode->lChildPipeID = topLevelNode->outPipeID;
-			insertNode->outPipeID = pipeID++;check--;
-            topLevelNode->parent = insertNode;
-            insertNode->type = DISTINCT;
-			topLevelNode = insertNode;
+			appendNodeData = new NodeDataQuery();
+			appendNodeData->nodeLeft = NodeDataTop;check++;
+            appendNodeData->schema = NodeDataTop->schema;
+            appendNodeData->leftNodeId = NodeDataTop->outputNodeId;
+			appendNodeData->outputNodeId = pipeID++;check--;
+            NodeDataTop->previous = appendNodeData;
+            appendNodeData->nodeType = DISTINCT;
+			NodeDataTop = appendNodeData;
 		}
 
 		if (groupingAtts  == 0){
-			insertNode = new QueryTreeNode();
-            topLevelNode->parent = insertNode;
-			insertNode->left = topLevelNode;
-			insertNode->lChildPipeID = topLevelNode->outPipeID;
-            insertNode->schema = topLevelNode->schema;
-			insertNode->funcOp = finalFunction;
-            insertNode->outPipeID = pipeID++;
-            insertNode->type = SUM;
-			insertNode->GenerateFunction();
+			appendNodeData = new NodeDataQuery();
+            NodeDataTop->previous = appendNodeData;
+			appendNodeData->nodeLeft = NodeDataTop;
+			appendNodeData->leftNodeId = NodeDataTop->outputNodeId;
+            appendNodeData->schema = NodeDataTop->schema;
+			appendNodeData->fOperator = finalFunction;
+            appendNodeData->outputNodeId = pipeID++;
+            appendNodeData->nodeType = SUM;
+			appendNodeData->createNodeTree();
 		}else{
-			insertNode = new QueryTreeNode();
-			insertNode->left = topLevelNode;check++;
-			topLevelNode->parent = insertNode;
-            insertNode->schema = topLevelNode->schema;
-			insertNode->outPipeID = pipeID++;check++;
-            insertNode->type = GROUP_BY;
-            insertNode->lChildPipeID = topLevelNode->outPipeID;
-			insertNode->order = new OrderMaker();check--;
+			appendNodeData = new NodeDataQuery();
+			appendNodeData->nodeLeft = NodeDataTop;check++;
+			NodeDataTop->previous = appendNodeData;
+            appendNodeData->schema = NodeDataTop->schema;
+			appendNodeData->outputNodeId = pipeID++;check++;
+            appendNodeData->nodeType = GROUP_BY;
+            appendNodeData->leftNodeId = NodeDataTop->outputNodeId;
+			appendNodeData->om = new OrderMaker();check--;
 			NameList* groupTraverse = groupingAtts;
             vector<int> attsToGroup,whichType;
             int numAttsGrp = 0;
 			while (groupTraverse){
-				attsToGroup.push_back(insertNode->schema->Find(groupTraverse->name));
-				whichType.push_back(insertNode->schema->FindType(groupTraverse->name));
+				attsToGroup.push_back(appendNodeData->schema->Find(groupTraverse->name));
+				whichType.push_back(appendNodeData->schema->FindType(groupTraverse->name));
                 numAttsGrp++;check++;
 				cout << "GROUPING ON " << groupTraverse->name << endl;
 				groupTraverse = groupTraverse->next;
 			}
 			check++;
-			insertNode->GenerateOM(numAttsGrp, attsToGroup, whichType);
-			insertNode->funcOp = finalFunction;check++;
-			insertNode->GenerateFunction();
+			appendNodeData->createOrder(numAttsGrp, attsToGroup, whichType);
+			appendNodeData->fOperator = finalFunction;check++;
+			appendNodeData->createNodeTree();
 		}
-		topLevelNode = insertNode;
+		NodeDataTop = appendNodeData;
 	}
 	if (distinctAtts != 0){
-		insertNode = new QueryTreeNode();
-        topLevelNode->parent = insertNode;
-        insertNode->schema = topLevelNode->schema;
-		insertNode->left = topLevelNode;
-        insertNode->type = DISTINCT;
-		insertNode->lChildPipeID = topLevelNode->outPipeID;
-		insertNode->outPipeID = pipeID++;
-		topLevelNode = insertNode;
+		appendNodeData = new NodeDataQuery();
+        NodeDataTop->previous = appendNodeData;
+        appendNodeData->schema = NodeDataTop->schema;
+		appendNodeData->nodeLeft = NodeDataTop;
+        appendNodeData->nodeType = DISTINCT;
+		appendNodeData->leftNodeId = NodeDataTop->outputNodeId;
+		appendNodeData->outputNodeId = pipeID++;
+		NodeDataTop = appendNodeData;
 	}
 	if (attsToSelect != 0){
-		traversalNode = topLevelNode;
-		insertNode = new QueryTreeNode();
-        traversalNode->parent = insertNode;check++;
-        insertNode->left = traversalNode;
-		insertNode->type = PROJECT;check++;
-        insertNode->outPipeID = pipeID++;
-        insertNode->lChildPipeID = traversalNode->outPipeID;
+		NodeDataTraversal = NodeDataTop;
+		appendNodeData = new NodeDataQuery();
+        NodeDataTraversal->previous = appendNodeData;check++;
+        appendNodeData->nodeLeft = NodeDataTraversal;
+		appendNodeData->nodeType = PROJECT;check++;
+        appendNodeData->outputNodeId = pipeID++;
+        appendNodeData->leftNodeId = NodeDataTraversal->outputNodeId;
         NameList* attsTraverse = attsToSelect;
-		Schema* oldSchema = traversalNode->schema;
+		Schema* oldSchema = NodeDataTraversal->schema;
 		string attribute;check++;
         vector<int> indexOfAttsToKeep;
         while (attsTraverse != 0){
@@ -255,12 +261,12 @@ int main(){
 		}
         check--;
 		Schema* newSchema = new Schema(oldSchema, indexOfAttsToKeep);
-		insertNode->schema = newSchema;
-		insertNode->schema->Print();
+		appendNodeData->schema = newSchema;
+		appendNodeData->schema->Print();
 	}
 	cout << "PRINTING TREE IN ORDER: " << endl << endl;
 	check++;
-	if (insertNode != NULL){
-        insertNode->PrintInOrder();
+	if (appendNodeData != NULL){
+        appendNodeData->orderPrint();
 	}
 }

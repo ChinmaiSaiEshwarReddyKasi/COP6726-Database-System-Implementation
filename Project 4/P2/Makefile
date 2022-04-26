@@ -7,11 +7,11 @@ ifdef linux
 tag = -n
 endif
 
-a42.out: y.tab.o lex.yy.o Record.o Schema.o Comparison.o ComparisonEngine.o Function.o Pipe.o BigQ.o File.o DBFile.o SortedDBFile.o HeapDBFile.o QueryTreeNode.o Statistics.o QueryTreeOperations.o main.o
-	$(CC) -o a42.out y.tab.o lex.yy.o Record.o Schema.o Comparison.o ComparisonEngine.o Function.o Pipe.o BigQ.o File.o DBFile.o SortedDBFile.o HeapDBFile.o QueryTreeNode.o Statistics.o QueryTreeOperations.o main.o -ll -lpthread
+a42.out: y.tab.o lex.yy.o Record.o Schema.o Comparison.o ComparisonEngine.o Function.o Pipe.o BigQ.o File.o DBFile.o SortedDBFile.o HeapDBFile.o NodeDataQuery.o Statistics.o NodeDataOperations.o main.o
+	$(CC) -o a42.out y.tab.o lex.yy.o Record.o Schema.o Comparison.o ComparisonEngine.o Function.o Pipe.o BigQ.o File.o DBFile.o SortedDBFile.o HeapDBFile.o NodeDataQuery.o Statistics.o NodeDataOperations.o main.o -ll -lpthread
 
-QueryTreeNode.o: QueryTreeNode.cc
-	$(CC) -g -c QueryTreeNode.cc
+NodeDataQuery.o: NodeDataQuery.cc
+	$(CC) -g -c NodeDataQuery.cc
 
 Statistics.o: Statistics.cc
 	$(CC) -g -c Statistics.cc
@@ -49,8 +49,8 @@ Schema.o: Schema.cc
 main.o : main.cc
 	$(CC) -g -c main.cc
 
-QueryTreeOperations.o : QueryTreeOperations.cc
-	$(CC) -g -c QueryTreeOperations.cc
+NodeDataOperations.o : NodeDataOperations.cc
+	$(CC) -g -c NodeDataOperations.cc
 
 y.tab.o: Parser.y
 	yacc -d Parser.y

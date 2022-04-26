@@ -71,7 +71,7 @@ public:
 	void Apply(struct AndList *parseTree, char *relNames[], int numToJoin);
     double Estimate(struct AndList *parseTree, char **relNames, int numToJoin);
     bool isRelInMap (string relName, RelData &relInfo);
-    void ParseRelation(struct Operand* op, string& relation);
+    void processRelationData(struct Operand* op, string& relation);
 };
 
 #endif
