@@ -1,123 +1,143 @@
 #ifndef REL_OP_H
 #define REL_OP_H
 
-#include <iostream>
-#include <vector>
-#include <cstring>
-#include <sstream>
-#include <pthread.h>
-
 #include "Pipe.h"
 #include "DBFile.h"
-#include "Schema.h"
 #include "Record.h"
 #include "Function.h"
-#include "Comparison.h"
-#include "ComparisonEngine.h"
 
-class RelOp {
-protected:
-    pthread_t t;
-	int runLen;
-public:
-	virtual void WaitUntilDone ();
-	virtual void Start () = 0;
-    virtual void Use_n_Pages (int n);
+class RelationalOp {
+	public:
+	// blocks the caller until the particular relational operator 
+	// has run to completion
+	virtual void WaitUntilDone () = 0;
+
+	// tell us how much internal memory the operation can use
+	virtual void Use_n_Pages (int n) = 0;
 };
 
-class SelectPipe : public RelOp {
-private:
-    CNF *cnf;
-	Record *lit;
-    Pipe *in, *out;
-public:
+class SelectFile : public RelationalOp { 
+
+	private:
+	pthread_t thread;
+	// Record *buffer;
+
+	public:
+
+	void Run (DBFile &inFile, Pipe &outPipe, CNF &selOp, Record &literal);
+	void WaitUntilDone ();
+	void Use_n_Pages (int n);
+
+};
+
+class SelectPipe : public RelationalOp {
+    private:
+        pthread_t thread;
+	public:
 	void Run (Pipe &inPipe, Pipe &outPipe, CNF &selOp, Record &literal);
-	void Start ();
-    SelectPipe () {};
-    ~SelectPipe () {};
+	void WaitUntilDone ();
+	void Use_n_Pages (int n);
 };
-
-class SelectFile : public RelOp {
-private:
-    CNF *cnf;
-	DBFile *file;
-	Record *lit;
-    Pipe *out;
-public:
-    void Run (DBFile &inFile, Pipe &outPipe, CNF &selOp, Record &literal);
-    SelectFile () {};
-    void Start ();
-    ~SelectFile () {};
-};
-
-class Project : public RelOp {
-private:
-    int numAttsIn, numAttsOut;
-	Pipe *in, *out;
-	int *attsToKeep;
-public:
+class Project : public RelationalOp { 
+	private:
+        pthread_t thread;
+	public:
 	void Run (Pipe &inPipe, Pipe &outPipe, int *keepMe, int numAttsInput, int numAttsOutput);
-    Project () {};
-    ~Project () {};
-	void Start ();
+	void WaitUntilDone ();
+	void Use_n_Pages (int n);
 };
 
-class Join : public RelOp {
-private:
-    CNF *cnf;
-    Record *lit;
-	Pipe *inPipeL, *inPipeR, *out;
-public:
-    void Start ();
-	~Join () {};
-    Join () {};
-	void Run (Pipe &inL, Pipe &inR, Pipe &outPipe, CNF &selOp, Record &literal);
+void* ProjectOperation (void* arg);
+
+typedef struct PArgs{
+	Pipe *inPipe;
+	Pipe *outPipe;
+	int *keepMe;
+	int numAttsInput;
+	int numAttsOutput;
 };
 
-class DuplicateRemoval : public RelOp {
-private:
-    Schema *schema;
-	Pipe *in, *out;
-public:
-    void Start ();
-    ~DuplicateRemoval () {};
-	DuplicateRemoval () {};
+class Join : public RelationalOp { 
+	private:
+        pthread_t thread;
+		int runLen;
+	public:
+	void Run (Pipe &inPipeL, Pipe &inPipeR, Pipe &outPipe, CNF &selOp, Record &literal);
+	void WaitUntilDone ();
+	void Use_n_Pages (int n);
+};
+
+typedef struct JArgs{
+	Pipe *inPipeL;
+	Pipe *inPipeR;
+	Pipe *outPipe;
+	CNF *selOp;
+	Record *literal;
+	int runLen;
+};
+
+void* JoinMain(void* arg);
+
+void JoinMergeRecords(Record* leftRecord, Record* rightRecord, Pipe* pipe);
+
+void JoinMainMerge(JArgs* joinArg, OrderMaker* leftOrder, OrderMaker* rightOrder);
+
+void NestedJoin(JArgs* joinArg);
+
+
+class DuplicateRemoval : public RelationalOp {
+	private:
+		pthread_t thread;
+		int runLen;
+	public:
 	void Run (Pipe &inPipe, Pipe &outPipe, Schema &mySchema);
+	void WaitUntilDone ();
+	void Use_n_Pages (int n);
 };
 
-class Sum : public RelOp {
-private:
-	Pipe *in, *out;
-	Function *compute;
-public:
-    void Start ();
-	void Run (Pipe &inPipe, Pipe &outPipe, Function &computeMe);
-    ~Sum () {};
-    Sum () {};
-};
+void* RemoveDuplicates(void* arg);
 
-class GroupBy : public RelOp {
-private:
+typedef struct DRArgs{
+	Pipe *inPipe;
+	Pipe *outPipe;
 	OrderMaker *order;
-    Pipe *in, *out;
-	Function *compute;
-public:
-    void Start ();
-	void Run (Pipe &inPipe, Pipe &outPipe, OrderMaker &groupAtts, Function &computeMe);
-    GroupBy () {};
-    ~GroupBy () {};
+	int runLen;
 };
 
-class WriteOut : public RelOp {
-private:
-    FILE *file;
-	Pipe *in;
-	Schema *schema;
-public:
+class Sum : public RelationalOp {
+    private:
+        pthread_t thread;
+	public:
+	void Run (Pipe &inPipe, Pipe &outPipe, Function &computeMe);
+	void WaitUntilDone ();
+	void Use_n_Pages (int n);
+};
+
+class GroupBy : public RelationalOp {
+    private:
+        pthread_t thread;
+	public:
+    int pages = 16;
+	void Run (Pipe &inPipe, Pipe &outPipe, OrderMaker &groupAtts, Function &computeMe);
+	void WaitUntilDone ();
+	void Use_n_Pages (int n);
+};
+
+class WriteOut : public RelationalOp {
+	private:
+		pthread_t thread;
+	public:
 	void Run (Pipe &inPipe, FILE *outFile, Schema &mySchema);
-    ~WriteOut () {};
-    WriteOut () {};
-	void Start ();
+	void WaitUntilDone ();
+	void Use_n_Pages (int n);
+};
+
+void* WriteOutMain(void* arg);
+
+typedef struct WOArgs{
+	Pipe *inPipe;
+	FILE *outFile;
+	Schema *schema;
 };
 
 #endif
