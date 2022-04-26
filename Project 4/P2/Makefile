@@ -2,6 +2,7 @@
 CC = g++ -O2 -Wno-deprecated
 
 tag = -i
+gTest_tag = -std=c++11 -lgtest -lgtest_main -pthread
 
 ifdef linux
 tag = -n
@@ -9,6 +10,12 @@ endif
 
 a42.out: y.tab.o lex.yy.o Record.o Schema.o Comparison.o ComparisonEngine.o Function.o Pipe.o BigQ.o File.o DBFile.o SortedDBFile.o HeapDBFile.o NodeDataQuery.o Statistics.o NodeDataOperations.o main.o
 	$(CC) -o a42.out y.tab.o lex.yy.o Record.o Schema.o Comparison.o ComparisonEngine.o Function.o Pipe.o BigQ.o File.o DBFile.o SortedDBFile.o HeapDBFile.o NodeDataQuery.o Statistics.o NodeDataOperations.o main.o -ll -lpthread
+
+gTests: y.tab.o lex.yy.o Record.o Schema.o Comparison.o ComparisonEngine.o Function.o Pipe.o BigQ.o File.o DBFile.o SortedDBFile.o HeapDBFile.o NodeDataQuery.o Statistics.o NodeDataOperations.o gTests.o
+	$(CC) -o gTests.out y.tab.o lex.yy.o Record.o Schema.o Comparison.o ComparisonEngine.o Function.o Pipe.o BigQ.o File.o DBFile.o SortedDBFile.o HeapDBFile.o NodeDataQuery.o Statistics.o NodeDataOperations.o gTests.o $(gTest_tag)
+
+gTests.o: gTests.cc
+	$(CC) -g -c gTests.cc $(gTest_tag)
 
 NodeDataQuery.o: NodeDataQuery.cc
 	$(CC) -g -c NodeDataQuery.cc
